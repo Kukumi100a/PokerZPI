@@ -14,7 +14,7 @@ class Karta:
 
 class Talia:
     kolory = ['Kier', 'Karo', 'Trefl', 'Pik']
-    hierarchia = ['Dwójka', 'Trójka', 'Czwórka', 'Piątka', 'Szóstka', 'Siódemka', 'Ósemka', 'Dziewiątka', 'Dziesiątka', 'Giermek', 'Dama', 'Król', 'As']
+    hierarchia = ['Dwójka', 'Trójka', 'Czwórka', 'Piątka', 'Szóstka', 'Siódemka', 'Ósemka', 'Dziewiątka', 'Dziesiątka', 'Walet', 'Dama', 'Król', 'As']
 
     def __init__(self):
         self.karty = [Karta(kolor, hierarchia) for kolor in self.kolory for hierarchia in self.hierarchia]
