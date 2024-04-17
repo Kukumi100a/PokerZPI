@@ -1,8 +1,10 @@
 import secrets
-from flask import Flask, session, request, jsonify
+from flask import Flask, render_template
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)  # Klucz sesji, losowy i unikalny
+app.config['SECRET_KEY'] = secrets.token_hex(16)
+socketio = SocketIO(app)
 
 class Karta:
     def __init__(self, kolory, hierarchia):
@@ -19,12 +21,20 @@ class Talia:
     def __init__(self):
         self.karty = [Karta(kolor, hierarchia) for kolor in self.kolory for hierarchia in self.hierarchia]
         self.tasuj()
+        self.wydane_karty = set()
 
     def tasuj(self):
         secrets.SystemRandom().shuffle(self.karty)
 
-    def rozdaj_karte(self):
-        return self.karty.pop()
+    def rozdaj_karte(self, ilosc=1):
+        wydane_karty = []
+        for _ in range(ilosc):
+            karta = self.karty.pop()
+            while karta in self.wydane_karty:
+                karta = self.karty.pop()
+            wydane_karty.append(karta)
+            self.wydane_karty.add(karta)
+        return wydane_karty
 
 class Gracz:
     def __init__(self, name, zetony):
@@ -71,11 +81,43 @@ class Gracz:
         self.stawka += self.zetony
         self.zetony = 0
 
+gracze = [Gracz("gracz1", 100),   
+          Gracz("gracz2", 100),
+          Gracz("gracz3", 100),
+          Gracz("gracz4", 100)]
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@socketio.on('rejestracja')
+def rejestracja(data):
+    name = data.get('nazwa')
+    if name:
+        gracz = Gracz(name, 100)
+        gracze[name] = gracz
+        emit('komunikat', {"komunikat": "Rejestracja zakończona pomyślnie."})
+    else:
+        emit('komunikat', {"błąd": "Nazwa jest wymagana."})
+
+@socketio.on('rozdanie')
+def rozdanie(data):
+    name = data.get('nazwa')
+    if name in gracze:
+        talia = Talia()
+        gracze[name].dobierz_karte(talia.rozdaj_karte(2))
+        stol = talia.rozdaj_karte(5)
+        emit('karty', {"reka": gracze[name].pokaz_reke(), "stol": [str(karta) for karta in stol]})
+    else:
+        emit('komunikat', {"błąd": "Gracz nie został znaleziony."})
+
 def analiza_ukladu(reka):
-    # Sprawdź czy mamy kolor
     kolory = [karta.kolory for karta in reka]
+    hierarchie = [karta.hierarchia for karta in reka]
+    
+    # Sprawdź czy mamy kolor
     if len(set(kolory)) == 1:
-        return "Kolor", None
+        return {"uklad": "Kolor", "dodatkowe_informacje": None}
 
     # Sprawdź czy mamy parę
     pary = []
@@ -84,86 +126,60 @@ def analiza_ukladu(reka):
             if karta1.hierarchia == karta2.hierarchia:
                 pary.append(karta1.hierarchia)
     if pary:
-        return "Para", pary[0]
+        return {"uklad": "Para", "dodatkowe_informacje": pary[0]}
 
     # Sprawdź czy mamy dwie pary
     unikalne_pary = list(set(pary))
     if len(unikalne_pary) >= 2:
-        return "Dwie pary", unikalne_pary[:2]
+        return {"uklad": "Dwie pary", "dodatkowe_informacje": unikalne_pary[:2]}
 
     # Sprawdź czy mamy trójkę
     for karta in reka:
         if reka.count(karta) == 3:
-            return "Trójka", karta.hierarchia
+            return {"uklad": "Trójka", "dodatkowe_informacje": karta.hierarchia}
 
     # Sprawdź czy mamy karetę
     for karta in reka:
         if reka.count(karta) == 4:
-            return "Kareta", karta.hierarchia
+            return {"uklad": "Kareta", "dodatkowe_informacje": karta.hierarchia}
 
     # Sprawdź czy mamy strita
     hierarchie_int = sorted([Talia.hierarchia.index(karta.hierarchia) for karta in reka])
     if len(set(hierarchie_int)) == 5 and max(hierarchie_int) - min(hierarchie_int) == 4:
-        return "Strit", reka[-1].hierarchia  # Załóżmy, że strit zaczyna się od najwyższej karty
+        return {"uklad": "Strit", "dodatkowe_informacje": reka[-1].hierarchia}
 
     # W przeciwnym razie zwróć kartę najwyższą
-    return "Karta najwyższa", reka[-1].hierarchia
+    return {"uklad": "Karta najwyższa", "dodatkowe_informacje": reka[-1].hierarchia}
 
-gracze = {Gracz("gracz1", 100),   
-          Gracz("gracz2", 100)}
-
-@app.route('/rejestracja', methods=['POST'])
-def rejestracja():
-    data = request.json
-    name = data.get('nazwa')
-    if name:
-        gracz = Gracz(name)
-        gracze[name] = gracz
-        return jsonify({"komunikat": "Rejestracja zakończona pomyślnie."}), 200
+@socketio.on('request_result')
+def wynik(stan_gry):
+    if stan_gry:
+        uklady = ['Kolor', 'Para', 'Dwie pary', 'Trójka', 'Kareta', 'Strit', 'Karta najwyższa']
+        wyniki = {}
+        for name, reka in stan_gry.items():
+            wyniki[name] = analiza_ukladu(reka)
+        
+        max_uklad = max(wyniki.values(), key=lambda x: uklady.index(x['uklad']))
+        zwyciezcy = [name for name, info in wyniki.items() if info['uklad'] == max_uklad['uklad']]
+        
+        if len(zwyciezcy) == 1:
+            zwyciezca = zwyciezcy[0]
+            emit('Wynik gry:', {" zwyciezcą jest: ": zwyciezca, " z układem: ": max_uklad['uklad'], "dodatkowe_informacje": max_uklad.get('dodatkowe_informacje', '')})
+        else:
+            emit('Wynik gry:', {"remis": zwyciezcy})
     else:
-        return jsonify({"błąd": "Nazwa jest wymagana."}), 400
+        emit('komunikat', {"błąd": "Brak danych o stanie gry."})
 
-@app.route('/rozdanie', methods=['POST'])
-def rozdanie():
-    name = request.json.get('nazwa')
-    if name in gracze:
-        talia = Talia()
-        for _ in range(5):
-            gracze[name].dobierz_karte(talia.rozdaj_karte())
-        return jsonify({"reka": gracze[name].pokaz_reke()}), 200
-    else:
-        return jsonify({"błąd": "Gracz nie został znaleziony."}), 404
-
-# analiza wszystkich rąk i zwrócenie wyniku 
-@app.route('/wynik', methods=['GET'])    
-def wynik():
-    uklady = ['Kolor', 'Para', 'Dwie pary', 'Trójka', 'Kareta', 'Strit', 'Karta najwyższa']
-    wyniki = {}
-
-    for gracz in gracze:
-        uklad, dodatkowe_informacje = analiza_ukladu(gracz.reka)
-        wyniki[gracz.name] = {"uklad": uklad, "dodatkowe_informacje": dodatkowe_informacje}
-
-    max_uklad = max(wyniki.values(), key=lambda x: uklady.index(x['uklad']))
-    zwyciezcy = [name for name, info in wyniki.items() if info['uklad'] == max_uklad['uklad']]
-
-    if len(zwyciezcy) == 1:
-        zwyciezca = zwyciezcy[0]
-        return jsonify({"zwyciezca": zwyciezca, "uklad": max_uklad['uklad'], "dodatkowe_informacje": max_uklad['dodatkowe_informacje']}), 200
-    else:
-        return jsonify({"remis": zwyciezcy}), 200
-
-# rozdanie kart wszystkim graczom    
-@app.route('/pierwsze_rozdanie', methods=['GET'])
 def pierwsze_rozdanie():
     talia = Talia()
+    karty_graczy = {}
     for gracz in gracze:
+        reka = []
         for _ in range(5):
-            gracz.dobierz_karte(talia.rozdaj_karte())
-            
-    karty_graczy = {gracz.name: gracz.pokaz_reke() for gracz in gracze}
-    return jsonify(karty_graczy), 200
-
+            karta = talia.rozdaj_karte()
+            reka.append(karta)
+        karty_graczy[gracz.name] = reka
+    return karty_graczy
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)
