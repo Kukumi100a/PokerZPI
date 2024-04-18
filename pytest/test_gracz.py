@@ -1,7 +1,7 @@
 import pytest
 import socketio
 import eventlet
-from poker import Gracz, Karta, pierwsze_rozdanie, wynik
+from poker import Gracz, Karta, pierwsze_rozdanie, wynik, Pokoj, stworz_pokoj
 
 @pytest.fixture
 def sio_client():
@@ -179,3 +179,70 @@ def test_pierwsze_rozdanie():
     assert len(karty_graczy) == 4
     for reka in karty_graczy.values():
         assert len(reka) == 5
+
+def test_stworz_pokoj(sio_client):
+    sio_client.connect('http://localhost:5000')
+
+    nazwa_pokoju = "testowy_pokoj"
+    haslo = "testowe_haslo"
+    wlasciciel = "testowy_gracz"
+
+    # Obsługa komunikatu o sukcesie
+    def komunikat_sukcesu(data):
+        assert data["success"] == "Pokój został utworzony pomyślnie"
+
+    # Połącz klienta WebSocket z serwerem
+    sio_client.on('komunikat', komunikat_sukcesu)
+
+    # Wysłanie żądania utworzenia pokoju
+    sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
+
+    # Uruchom obsługę zdarzeń
+    eventlet.sleep(1)
+
+def test_dolacz_do_pokoju(sio_client):
+    sio_client.connect('http://localhost:5000')
+
+    nazwa_pokoju = "testowy_pokoj"
+    haslo = "testowe_haslo"
+    gracz = "testowy_gracz"
+
+    def komunikat_sukcesu(data):
+        assert data["success"] == f'Dołączono do pokoju {nazwa_pokoju}'
+
+    sio_client.on('komunikat', komunikat_sukcesu)
+
+    sio_client.emit('dolacz_do_pokoju', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': gracz})
+
+    eventlet.sleep(1)
+
+def test_opusc_pokoj(sio_client):
+    sio_client.connect('http://localhost:5000')
+
+    nazwa_pokoju = "testowy_pokoj"
+    gracz = "testowy_gracz"
+
+    def komunikat_sukcesu(data):
+        assert data["success"] == f'Opuszczono pokój {nazwa_pokoju}'
+
+    sio_client.on('komunikat', komunikat_sukcesu)
+
+    sio_client.emit('opusc_pokoj', {'nazwa': nazwa_pokoju, 'gracz': gracz})
+
+    eventlet.sleep(1)
+
+def test_ustaw_haslo(sio_client):
+    sio_client.connect('http://localhost:5000')
+
+    nazwa_pokoju = "testowy_pokoj"
+    haslo = "nowe_haslo"
+    wlasciciel = "wlasciciel"
+
+    def komunikat_sukcesu(data):
+        assert data["success"] == f'Hasło do pokoju {nazwa_pokoju} zostało ustawione'
+
+    sio_client.on('komunikat', komunikat_sukcesu)
+
+    sio_client.emit('ustaw_haslo', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': wlasciciel})
+
+    eventlet.sleep(1)

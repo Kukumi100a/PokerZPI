@@ -86,6 +86,29 @@ gracze = [Gracz("gracz1", 100),
           Gracz("gracz3", 100),
           Gracz("gracz4", 100)]
 
+class Pokoj:
+    def __init__(self, nazwa, wlasciciel, haslo=None):
+        self.nazwa = nazwa
+        self.wlasciciel = wlasciciel
+        self.haslo = haslo
+        self.gracze = [wlasciciel]
+        self.socket_id_wlasciciela = None
+
+    def dodaj_gracza(self, gracz):
+        self.gracze.append(gracz)
+
+    def usun_gracza(self, gracz):
+        if gracz in self.gracze:
+            self.gracze.remove(gracz)
+
+    def ustaw_haslo(self, haslo):
+        self.haslo = haslo
+
+    def czy_wlasciciel(self, gracz):
+        return gracz == self.wlasciciel
+
+pokoje = []
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -151,6 +174,20 @@ def analiza_ukladu(reka):
     # W przeciwnym razie zwróć kartę najwyższą
     return {"uklad": "Karta najwyższa", "dodatkowe_informacje": reka[-1].hierarchia}
 
+
+def pierwsze_rozdanie():
+    talia = Talia()
+    karty_graczy = {}
+    for gracz in gracze:
+        reka = []
+        for _ in range(5):
+            karta = talia.rozdaj_karte()
+            reka.append(karta)
+        karty_graczy[gracz.name] = reka
+    return karty_graczy
+
+
+
 @socketio.on('request_result')
 def wynik(stan_gry):
     if stan_gry:
@@ -170,16 +207,58 @@ def wynik(stan_gry):
     else:
         emit('komunikat', {"błąd": "Brak danych o stanie gry."})
 
-def pierwsze_rozdanie():
-    talia = Talia()
-    karty_graczy = {}
-    for gracz in gracze:
-        reka = []
-        for _ in range(5):
-            karta = talia.rozdaj_karte()
-            reka.append(karta)
-        karty_graczy[gracz.name] = reka
-    return karty_graczy
+@app.route('/stworz_pokoj')
+def stworz_pokoj():
+    nazwa_pokoju = request.args.get('nazwa')
+    haslo = request.args.get('haslo')
+    wlasciciel = request.args.get('wlasciciel')
+
+    if not nazwa_pokoju or not wlasciciel:
+        return jsonify({"error": "Brak wymaganych danych"})
+
+    if any(p.nazwa == nazwa_pokoju for p in pokoje):
+        return jsonify({"error": "Pokój o tej nazwie już istnieje"})
+
+    pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
+    pokoje.append(pokoj)
+    
+    return jsonify({"success": "Pokój został utworzony pomyślnie"})
+
+@socketio.on('dolacz_do_pokoju')
+def dolacz_do_pokoju(data):
+    nazwa_pokoju = data.get('nazwa')
+    haslo = data.get('haslo')
+    gracz = data.get('gracz')
+
+    pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+    if not pokoj:
+        emit('komunikat', {'error': 'Pokój o podanej nazwie nie istnieje'})
+    elif pokoj.haslo and pokoj.haslo != haslo:
+        emit('komunikat', {'error': 'Nieprawidłowe hasło do pokoju'})
+    else:
+        pokoj.dodaj_gracza(gracz)
+        emit('komunikat', {'success': f'Dołączono do pokoju {nazwa_pokoju}'})
+
+@socketio.on('opusc_pokoj')
+def opusc_pokoj(data):
+    nazwa_pokoju = data.get('nazwa')
+    gracz = data.get('gracz')
+
+    pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+    if pokoj:
+        pokoj.usun_gracza(gracz)
+        emit('komunikat', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
+
+@socketio.on('ustaw_haslo')
+def ustaw_haslo(data):
+    nazwa_pokoju = data.get('nazwa')
+    haslo = data.get('haslo')
+    gracz = data.get('gracz')
+
+    pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+    if pokoj and pokoj.czy_wlasciciel(gracz):
+        pokoj.ustaw_haslo(haslo)
+        emit('komunikat', {'success': f'Hasło do pokoju {nazwa_pokoju} zostało ustawione'})
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)
