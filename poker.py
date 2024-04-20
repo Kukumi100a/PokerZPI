@@ -4,7 +4,7 @@ from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(16)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 class Karta:
     def __init__(self, kolory, hierarchia):
@@ -15,13 +15,15 @@ class Karta:
         return f"{self.hierarchia} of {self.kolory}"
 
 class Talia:
-    kolory = ['Kier', 'Karo', 'Trefl', 'Pik']
-    hierarchia = ['Dwojka', 'Trojka', 'Czworka', 'Piatka', 'Szostka', 'Siodemka', 'Osemka', 'Dziewiatka', 'Dziesiatka', 'Walet', 'Dama', 'Krol', 'As']
-
     def __init__(self):
-        self.karty = [Karta(kolor, hierarchia) for kolor in self.kolory for hierarchia in self.hierarchia]
-        self.tasuj()
+        self.karty = self.utworz_talie()
         self.wydane_karty = set()
+
+    def utworz_talie(self):
+        kolory = ['Kier', 'Karo', 'Trefl', 'Pik']
+        hierarchia = ['Dwojka', 'Trojka', 'Czworka', 'Piatka', 'Szostka', 'Siodemka', 'Osemka', 'Dziewiatka', 'Dziesiatka', 'Walet', 'Dama', 'Krol', 'As']
+        return [Karta(kolor, wartosc) for kolor in kolory for wartosc in hierarchia]
+
 
     def tasuj(self):
         secrets.SystemRandom().shuffle(self.karty)
@@ -81,10 +83,12 @@ class Gracz:
         self.stawka += self.zetony
         self.zetony = 0
 
-gracze = [Gracz("gracz1", 100),   
-          Gracz("gracz2", 100),
-          Gracz("gracz3", 100),
-          Gracz("gracz4", 100)]
+gracze = {
+    "gracz1": Gracz("gracz1", 100),
+    "gracz2": Gracz("gracz2", 100),
+    "gracz3": Gracz("gracz3", 100),
+    "gracz4": Gracz("gracz4", 100)
+}
 
 class Pokoj:
     def __init__(self, nazwa, wlasciciel, haslo=None):
@@ -127,13 +131,23 @@ def rejestracja(data):
 def rozdanie(data):
     name = data.get('nazwa')
     if name in gracze:
-        talia = Talia()
-        gracze[name].dobierz_karte(talia.rozdaj_karte(2))
+        # Sprawdź, czy talia już istnieje
+        if 'talia' not in globals():
+            emit('komunikat', {"błąd": "Brak talii kart."})
+            return
+
+        # Rozdaj karty graczowi
+        dealt_cards = talia.rozdaj_karte(2)
+        gracze[name].dobierz_karte(dealt_cards)
+
+        # Rozdaj karty na stół
         stol = talia.rozdaj_karte(5)
+
+        # Wyślij informacje o kartach do klienta
         emit('karty', {"reka": gracze[name].pokaz_reke(), "stol": [str(karta) for karta in stol]})
     else:
         emit('komunikat', {"błąd": "Gracz nie został znaleziony."})
-
+        
 def analiza_ukladu(reka):
     kolory = [karta.kolory for karta in reka]
     hierarchie = [karta.hierarchia for karta in reka]
@@ -178,12 +192,12 @@ def analiza_ukladu(reka):
 def pierwsze_rozdanie():
     talia = Talia()
     karty_graczy = {}
-    for gracz in gracze:
+    for gracz_name, gracz_obj in gracze.items():
         reka = []
         for _ in range(5):
             karta = talia.rozdaj_karte()
             reka.append(karta)
-        karty_graczy[gracz.name] = reka
+        karty_graczy[gracz_name] = reka
     return karty_graczy
 
 
@@ -206,23 +220,22 @@ def wynik(stan_gry):
             emit('Wynik gry:', {"remis": zwyciezcy})
     else:
         emit('komunikat', {"błąd": "Brak danych o stanie gry."})
+        return
 
-@app.route('/stworz_pokoj')
-def stworz_pokoj():
-    nazwa_pokoju = request.args.get('nazwa')
-    haslo = request.args.get('haslo')
-    wlasciciel = request.args.get('wlasciciel')
+@socketio.on('stworz_pokoj')
+def stworz_pokoj(data):
+    nazwa_pokoju = data.get('nazwa')
+    haslo = data.get('haslo')
+    wlasciciel = data.get('wlasciciel')
 
     if not nazwa_pokoju or not wlasciciel:
-        return jsonify({"error": "Brak wymaganych danych"})
-
-    if any(p.nazwa == nazwa_pokoju for p in pokoje):
-        return jsonify({"error": "Pokój o tej nazwie już istnieje"})
-
-    pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
-    pokoje.append(pokoj)
-    
-    return jsonify({"success": "Pokój został utworzony pomyślnie"})
+        emit('komunikat', {"error": "Brak wymaganych danych"})
+    elif any(p.nazwa == nazwa_pokoju for p in pokoje):
+        emit('komunikat', {"error": "Pokój o tej nazwie już istnieje"})
+    else:
+        pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
+        pokoje.append(pokoj)
+        emit('komunikat', {"success": "Pokój został utworzony pomyślnie"})
 
 @socketio.on('dolacz_do_pokoju')
 def dolacz_do_pokoju(data):

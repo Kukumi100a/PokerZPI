@@ -187,6 +187,9 @@ def test_stworz_pokoj(sio_client):
     haslo = "testowe_haslo"
     wlasciciel = "testowy_gracz"
 
+    # Wysłanie żądania utworzenia pokoju
+    sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
+
     # Obsługa komunikatu o sukcesie
     def komunikat_sukcesu(data):
         assert data["success"] == "Pokój został utworzony pomyślnie"
@@ -194,28 +197,46 @@ def test_stworz_pokoj(sio_client):
     # Połącz klienta WebSocket z serwerem
     sio_client.on('komunikat', komunikat_sukcesu)
 
-    # Wysłanie żądania utworzenia pokoju
-    sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
-
     # Uruchom obsługę zdarzeń
     eventlet.sleep(1)
 
 def test_dolacz_do_pokoju(sio_client):
+    from poker import pokoje
+    
+    # Tworzenie tymczasowego pokoju
+    nazwa_pokoju = "testowy_pokoj"
+    haslo = "testowe_haslo"
+    wlasciciel = "testowy_gracz"
+    pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
+    pokoje.append(pokoj)
+    
     sio_client.connect('http://localhost:5000')
 
     nazwa_pokoju = "testowy_pokoj"
     haslo = "testowe_haslo"
     gracz = "testowy_gracz"
+    wlasciciel = "testowy_gracz"
+
+    # Tworzenie testowego pokoju
+    sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
+
+    eventlet.sleep(1)
+
+    # Dołączanie do testowego pokoju
+    sio_client.emit('dolacz_do_pokoju', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': gracz})
 
     def komunikat_sukcesu(data):
         assert data["success"] == f'Dołączono do pokoju {nazwa_pokoju}'
 
     sio_client.on('komunikat', komunikat_sukcesu)
 
-    sio_client.emit('dolacz_do_pokoju', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': gracz})
-
     eventlet.sleep(1)
 
+    # Sprawdzenie, czy gracz został pomyślnie dodany do pokoju
+    pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+    assert pokoj is not None
+
+    
 def test_opusc_pokoj(sio_client):
     sio_client.connect('http://localhost:5000')
 

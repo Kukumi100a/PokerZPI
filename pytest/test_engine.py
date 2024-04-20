@@ -39,7 +39,7 @@ def test_rozdanie(client):
 
     # Zdefiniuj funkcję obsługi komunikatu 'karty' wysłanego przez serwer
     def karty(data):
-        assert len(data["reka"]) == 2
+        assert len(data["reka"]) == 2  # Oczekujemy dwóch kart na ręce gracza
         assert len(data["stol"]) == 5
         sio_client.disconnect()
 
