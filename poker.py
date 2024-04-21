@@ -273,5 +273,13 @@ def ustaw_haslo(data):
         pokoj.ustaw_haslo(haslo)
         emit('komunikat', {'success': f'Hasło do pokoju {nazwa_pokoju} zostało ustawione'})
 
+@socketio.on('wyswietl_pokoje')
+def wyswietl_pokoje():
+    if pokoje:
+        nazwy_pokoi = [p.nazwa for p in pokoje]
+        emit('pokoje', {'pokoje': nazwy_pokoi})
+    else:
+        emit('komunikat', {'komunikat': 'Obecnie nie ma żadnych dostępnych pokojów.'})
+
 if __name__ == "__main__":
     socketio.run(app, debug=True)

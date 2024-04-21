@@ -267,3 +267,18 @@ def test_ustaw_haslo(sio_client):
     sio_client.emit('ustaw_haslo', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': wlasciciel})
 
     eventlet.sleep(1)
+
+def test_wyswietl_pokoje(sio_client):
+    sio_client.connect('http://localhost:5000')
+
+    def komunikat_pokoje(data):
+        assert 'pokoje' in data
+        pokoje = data['pokoje']
+        assert isinstance(pokoje, list)
+        assert len(pokoje) == 0  
+
+    sio_client.emit('wyswietl_pokoje')
+
+    sio_client.on('pokoje', komunikat_pokoje)
+
+    eventlet.sleep(1)
