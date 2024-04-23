@@ -45,8 +45,14 @@ class Gracz:
         self.reka = []
         self.stawka = 0
 
-    def dobierz_karte(self, karta):
-        self.reka.append(karta)
+    def dobierz_karte(self, karty_do_wymiany, talia):
+        # Usuń karty do wymiany z ręki gracza
+        for karta in karty_do_wymiany:
+            self.reka.remove(karta)
+        
+        # Dobierz nowe karty z talii
+        nowe_karty = talia.rozdaj_karte(len(karty_do_wymiany))
+        self.reka.extend(nowe_karty)
 
     def pokaz_reke(self):
         return [str(karta) for karta in self.reka]
@@ -110,6 +116,13 @@ class Pokoj:
 
     def czy_wlasciciel(self, gracz):
         return gracz == self.wlasciciel
+    
+    def usun_gracza_przymusowo(self, gracz):
+        if gracz != self.wlasciciel:
+            self.gracze.remove(gracz)
+            return True
+        else:
+            return False
 
 pokoje = []
 
@@ -123,9 +136,9 @@ def rejestracja(data):
     if name:
         gracz = Gracz(name, 100)
         gracze[name] = gracz
-        emit('komunikat', {"komunikat": "Rejestracja zakończona pomyślnie."})
+        emit('rejestracja', {"komunikat": "Rejestracja zakończona pomyślnie."})
     else:
-        emit('komunikat', {"błąd": "Nazwa jest wymagana."})
+        emit('rejestracja', {"błąd": "Nazwa jest wymagana."})
 
 @socketio.on('rozdanie')
 def rozdanie(data):
@@ -133,7 +146,7 @@ def rozdanie(data):
     if name in gracze:
         # Sprawdź, czy talia już istnieje
         if 'talia' not in globals():
-            emit('komunikat', {"błąd": "Brak talii kart."})
+            emit('rozdanie', {"błąd": "Brak talii kart."})
             return
 
         # Rozdaj karty graczowi
@@ -146,7 +159,7 @@ def rozdanie(data):
         # Wyślij informacje o kartach do klienta
         emit('karty', {"reka": gracze[name].pokaz_reke(), "stol": [str(karta) for karta in stol]})
     else:
-        emit('komunikat', {"błąd": "Gracz nie został znaleziony."})
+        emit('rozdanie', {"błąd": "Gracz nie został znaleziony."})
         
 def analiza_ukladu(reka):
     kolory = [karta.kolory for karta in reka]
@@ -202,7 +215,7 @@ def pierwsze_rozdanie():
 
 
 
-@socketio.on('request_result')
+@socketio.on('rezultat')
 def wynik(stan_gry):
     if stan_gry:
         uklady = ['Kolor', 'Para', 'Dwie pary', 'Trójka', 'Kareta', 'Strit', 'Karta najwyższa']
@@ -219,7 +232,7 @@ def wynik(stan_gry):
         else:
             emit('Wynik gry:', {"remis": zwyciezcy})
     else:
-        emit('komunikat', {"błąd": "Brak danych o stanie gry."})
+        emit('rezultat', {"błąd": "Brak danych o stanie gry."})
         return
 
 @socketio.on('stworz_pokoj')
@@ -229,13 +242,14 @@ def stworz_pokoj(data):
     wlasciciel = data.get('wlasciciel')
 
     if not nazwa_pokoju or not wlasciciel:
-        emit('komunikat', {"error": "Brak wymaganych danych"})
+        emit('stworz_pokoj', {"error": "Brak wymaganych danych"})
     elif any(p.nazwa == nazwa_pokoju for p in pokoje):
-        emit('komunikat', {"error": "Pokój o tej nazwie już istnieje"})
+        emit('stworz_pokoj', {"error": "Pokój o tej nazwie już istnieje"})
     else:
         pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
+        pokoj.dodaj_gracza(wlasciciel)  # Dodaj właściciela do listy graczy w pokoju
         pokoje.append(pokoj)
-        emit('komunikat', {"success": "Pokój został utworzony pomyślnie"})
+        emit('stworz_pokoj', {"success": "Pokój został utworzony pomyślnie"})
 
 @socketio.on('dolacz_do_pokoju')
 def dolacz_do_pokoju(data):
@@ -245,12 +259,12 @@ def dolacz_do_pokoju(data):
 
     pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
     if not pokoj:
-        emit('komunikat', {'error': 'Pokój o podanej nazwie nie istnieje'})
+        emit('dolacz_do_pokoju', {'error': 'Pokój o podanej nazwie nie istnieje'})
     elif pokoj.haslo and pokoj.haslo != haslo:
-        emit('komunikat', {'error': 'Nieprawidłowe hasło do pokoju'})
+        emit('dolacz_do_pokoju', {'error': 'Nieprawidłowe hasło do pokoju'})
     else:
         pokoj.dodaj_gracza(gracz)
-        emit('komunikat', {'success': f'Dołączono do pokoju {nazwa_pokoju}'})
+        emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {nazwa_pokoju}'})
 
 @socketio.on('opusc_pokoj')
 def opusc_pokoj(data):
@@ -260,7 +274,7 @@ def opusc_pokoj(data):
     pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
     if pokoj:
         pokoj.usun_gracza(gracz)
-        emit('komunikat', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
+        emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
 
 @socketio.on('ustaw_haslo')
 def ustaw_haslo(data):
@@ -271,15 +285,28 @@ def ustaw_haslo(data):
     pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
     if pokoj and pokoj.czy_wlasciciel(gracz):
         pokoj.ustaw_haslo(haslo)
-        emit('komunikat', {'success': f'Hasło do pokoju {nazwa_pokoju} zostało ustawione'})
+        emit('ustawienie_hasla', {'success': f'Hasło do pokoju {nazwa_pokoju} zostało ustawione'})
 
 @socketio.on('wyswietl_pokoje')
 def wyswietl_pokoje():
     if pokoje:
-        nazwy_pokoi = [p.nazwa for p in pokoje]
-        emit('pokoje', {'pokoje': nazwy_pokoi})
+        lista_pokoi = [{'nazwa': p.nazwa, 'wlasciciel': p.wlasciciel, 'liczba_graczy': len(p.gracze)} for p in pokoje]
+        emit('lista_pokoi', {'pokoje': lista_pokoi})
     else:
-        emit('komunikat', {'komunikat': 'Obecnie nie ma żadnych dostępnych pokojów.'})
+        emit('lista_pokoi', {'komunikat': 'Obecnie nie ma żadnych dostępnych pokojów.'})
+
+@socketio.on('sprawdz_graczy_w_pokoju')
+def sprawdz_graczy_w_pokoju(data):
+    nazwa_pokoju = data.get('nazwa')
+    gracz = data.get('gracz')
+
+    pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+    if pokoj:
+        gracze_w_pokoju = pokoj.gracze
+        emit('lista_graczy_w_pokoju', {'gracze': gracze_w_pokoju})
+    else:
+        emit('lista_graczy_w_pokoju', {'error': 'Pokój o podanej nazwie nie istnieje'})
+
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)

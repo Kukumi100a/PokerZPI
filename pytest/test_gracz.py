@@ -1,7 +1,7 @@
 import pytest
 import socketio
 import eventlet
-from poker import Gracz, Karta, pierwsze_rozdanie, wynik, Pokoj, stworz_pokoj
+from poker import Gracz, Karta, pierwsze_rozdanie, wynik, Pokoj, stworz_pokoj, pokoje, Talia
 
 @pytest.fixture
 def sio_client():
@@ -99,24 +99,6 @@ def test_va_banque(sio_client):
     # Uruchom obsługę zdarzeń
     eventlet.sleep(1)
 
-def test_dobierz_karte(sio_client):
-    sio_client.connect('http://localhost:5000')
-
-    # Obsługa dobierania kart
-    def komunikat(data):
-        sio_client.emit('dobierz_karte', {})
-        sio_client.on('komunikat', komunikat_dobierz_karte)
-
-    # komunikat dobrania karty
-    def komunikat_dobierz_karte(data):
-        assert data["komunikat"] == "Dobrano kartę."
-
-    # Połącz klienta WebSocket z serwerem
-    sio_client.on('komunikat', komunikat)
-
-    # Uruchom obsługę zdarzeń
-    eventlet.sleep(1)
-
 def test_pokaz_reke(sio_client):
     sio_client.connect('http://localhost:5000')
 
@@ -180,6 +162,21 @@ def test_pierwsze_rozdanie():
     for reka in karty_graczy.values():
         assert len(reka) == 5
 
+def test_wyswietl_pokoje(sio_client):
+    sio_client.connect('http://localhost:5000')
+
+    def komunikat_pokoje(data):
+        assert 'pokoje' in data
+        pokoje = data['pokoje']
+        assert isinstance(pokoje, list)
+        assert len(pokoje) == 0  
+
+    sio_client.emit('wyswietl_pokoje')
+
+    sio_client.on('lista_pokoi', komunikat_pokoje)
+
+    eventlet.sleep(1)
+    
 def test_stworz_pokoj(sio_client):
     sio_client.connect('http://localhost:5000')
 
@@ -195,7 +192,7 @@ def test_stworz_pokoj(sio_client):
         assert data["success"] == "Pokój został utworzony pomyślnie"
 
     # Połącz klienta WebSocket z serwerem
-    sio_client.on('komunikat', komunikat_sukcesu)
+    sio_client.on('stworz_pokoj', komunikat_sukcesu)
 
     # Uruchom obsługę zdarzeń
     eventlet.sleep(1)
@@ -228,7 +225,7 @@ def test_dolacz_do_pokoju(sio_client):
     def komunikat_sukcesu(data):
         assert data["success"] == f'Dołączono do pokoju {nazwa_pokoju}'
 
-    sio_client.on('komunikat', komunikat_sukcesu)
+    sio_client.on('dolacz_do_pokoju', komunikat_sukcesu)
 
     eventlet.sleep(1)
 
@@ -246,7 +243,7 @@ def test_opusc_pokoj(sio_client):
     def komunikat_sukcesu(data):
         assert data["success"] == f'Opuszczono pokój {nazwa_pokoju}'
 
-    sio_client.on('komunikat', komunikat_sukcesu)
+    sio_client.on('opuszczanie_pokoju', komunikat_sukcesu)
 
     sio_client.emit('opusc_pokoj', {'nazwa': nazwa_pokoju, 'gracz': gracz})
 
@@ -262,23 +259,71 @@ def test_ustaw_haslo(sio_client):
     def komunikat_sukcesu(data):
         assert data["success"] == f'Hasło do pokoju {nazwa_pokoju} zostało ustawione'
 
-    sio_client.on('komunikat', komunikat_sukcesu)
+    sio_client.on('ustawienie_hasla', komunikat_sukcesu)
 
     sio_client.emit('ustaw_haslo', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': wlasciciel})
 
     eventlet.sleep(1)
 
-def test_wyswietl_pokoje(sio_client):
+def test_sprawdz_graczy_w_pokoju(sio_client):
     sio_client.connect('http://localhost:5000')
 
-    def komunikat_pokoje(data):
-        assert 'pokoje' in data
-        pokoje = data['pokoje']
-        assert isinstance(pokoje, list)
-        assert len(pokoje) == 0  
+    def komunikat_gracze(data):
+        if 'gracze' in data:
+            gracze = data['gracze']
+            assert isinstance(gracze, list)
+            assert len(gracze) == 2  # Załóżmy, że oczekujemy dwóch graczy w pokoju
+        elif 'error' in data:
+            assert data['error'] == 'Pokój o podanej nazwie nie istnieje'
+        else:
+            assert False, "Otrzymano nieoczekiwany komunikat"
 
-    sio_client.emit('wyswietl_pokoje')
+    nazwa_pokoju = 'Testowy pokój'
+    gracz = 'Testowy gracz'
 
-    sio_client.on('pokoje', komunikat_pokoje)
+    # Tworzymy fikcyjny pokój i dodajemy do niego graczy
+    p = Pokoj(nazwa_pokoju, 'Właściciel')
+    p.dodaj_gracza(gracz)
+    p.dodaj_gracza('Inny gracz')
+    pokoje.append(p)
+
+    sio_client.emit('sprawdz_graczy_w_pokoju', {'nazwa': nazwa_pokoju, 'gracz': gracz})
+
+    sio_client.on('lista_graczy_w_pokoju', komunikat_gracze)
 
     eventlet.sleep(1)
+
+def test_dobierz_karte():
+    # Tworzymy gracza i talie do testu
+    gracz = Gracz("Testowy gracz", 100)
+    talia = Talia()
+    talia.tasuj()
+
+    # Dodajemy kilka kart do ręki gracza
+    gracz.reka = [
+        Karta("Kier", "As"),
+        Karta("Kier", "Dama"),
+        Karta("Kier", "Król"),
+        Karta("Karo", "As"),
+        Karta("Trefl", "Dama")
+    ]
+
+    # Wybieramy karty do wymiany (np. pierwsze dwie)
+    karty_do_wymiany = gracz.reka[:2]
+
+    # Wywołujemy funkcję dobierz_karte
+    gracz.dobierz_karte(karty_do_wymiany, talia)
+
+    # Sprawdzamy, czy liczba kart w ręce gracza się zmieniła
+    assert len(gracz.reka) == 5
+
+    # Sprawdzamy, czy karty do wymiany zostały usunięte z ręki gracza
+    for karta in karty_do_wymiany:
+        assert karta not in gracz.reka
+
+    # Sprawdzamy, czy wszystkie karty w ręce gracza są unikalne
+    assert len(set(gracz.reka)) == len(gracz.reka)
+
+    # Sprawdzamy, czy nowe karty pochodzą z talii
+    for karta in gracz.reka:
+        assert karta not in karty_do_wymiany
