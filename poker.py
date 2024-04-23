@@ -1,10 +1,73 @@
 import secrets
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
+from collections import Counter
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(16)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+hierarchia = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+
+
+# Funkcja do weryfikacji układu kart
+def check_hand(hand):
+    counts = Counter(card.rank for card in hand)
+    if len(counts) == 5:
+        return "High Card"
+    if len(counts) == 4:
+        return "One Pair"
+    if len(counts) == 3:
+        if 3 in counts.values():
+            return "Three of a Kind"
+        else:
+            return "Two Pair"
+    if len(counts) == 2:
+        if 4 in counts.values():
+            return "Four of a Kind"
+        else:
+            return "Full House"
+    if len(counts) == 1:
+        if "10" in counts.keys() and "J" in counts.keys() and "Q" in counts.keys() and "K" in counts.keys() and "A" in counts.keys():
+            return "Royal Flush"
+        elif all(rank in counts.keys() for rank in ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']):
+            return "Straight Flush"
+        else:
+            return "Flush"
+    
+# Funkcja do sprawdzenia, kto ma najlepszy układ
+def determine_winner(self, hands):
+    winners = []
+    best_hand_rank = None
+    for idx, hand in enumerate(hands):
+        hand_rank = self.check_hand(hand)
+        if best_hand_rank is None or hand_rank > best_hand_rank:
+            best_hand_rank = hand_rank
+            winners = [idx]
+        elif hand_rank == best_hand_rank:
+            winners.append(idx)
+
+    # Jeśli mamy więcej niż jednego zwycięzcę, sprawdzamy dokładnie, kto wygrał
+    if len(winners) > 1:
+        best_pair_rank = 0
+        best_card_rank = 0
+        winning_player = None
+        for winner_idx in winners:
+            hand = hands[winner_idx]
+            hand_ranks = [hierarchia.index(card.rank) for card in hand]
+            pair_rank = max(set(hand_ranks), key=hand_ranks.count)
+            if pair_rank > best_pair_rank:
+                best_pair_rank = pair_rank
+                best_card_rank = max(hand_ranks)
+                winning_player = winner_idx
+            elif pair_rank == best_pair_rank:
+                if max(hand_ranks) > best_card_rank:
+                    best_card_rank = max(hand_ranks)
+                    winning_player = winner_idx
+
+        winners = [winning_player]
+
+    return winners, best_hand_rank
 
 class Karta:
     def __init__(self, kolory, hierarchia):
@@ -21,7 +84,7 @@ class Talia:
 
     def utworz_talie(self):
         kolory = ['Kier', 'Karo', 'Trefl', 'Pik']
-        hierarchia = ['Dwojka', 'Trojka', 'Czworka', 'Piatka', 'Szostka', 'Siodemka', 'Osemka', 'Dziewiatka', 'Dziesiatka', 'Walet', 'Dama', 'Krol', 'As']
+        hierarchia = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         return [Karta(kolor, wartosc) for kolor in kolory for wartosc in hierarchia]
 
 
@@ -124,6 +187,7 @@ class Pokoj:
         else:
             return False
 
+
 pokoje = []
 
 @app.route('/')
@@ -141,65 +205,65 @@ def rejestracja(data):
         emit('rejestracja', {"błąd": "Nazwa jest wymagana."})
 
 @socketio.on('rozdanie')
-def rozdanie(data):
-    name = data.get('nazwa')
-    if name in gracze:
-        # Sprawdź, czy talia już istnieje
-        if 'talia' not in globals():
-            emit('rozdanie', {"błąd": "Brak talii kart."})
-            return
+# def rozdanie(data):
+#     name = data.get('nazwa')
+#     if name in gracze:
+#         # Sprawdź, czy talia już istnieje
+#         if 'talia' not in globals():
+#             emit('rozdanie', {"błąd": "Brak talii kart."})
+#             return
 
-        # Rozdaj karty graczowi
-        dealt_cards = talia.rozdaj_karte(2)
-        gracze[name].dobierz_karte(dealt_cards)
+#         # Rozdaj karty graczowi
+#         dealt_cards = talia.rozdaj_karte(2)
+#         gracze[name].dobierz_karte(dealt_cards)
 
-        # Rozdaj karty na stół
-        stol = talia.rozdaj_karte(5)
+#         # Rozdaj karty na stół
+#         stol = talia.rozdaj_karte(5)
 
-        # Wyślij informacje o kartach do klienta
-        emit('karty', {"reka": gracze[name].pokaz_reke(), "stol": [str(karta) for karta in stol]})
-    else:
-        emit('rozdanie', {"błąd": "Gracz nie został znaleziony."})
+#         # Wyślij informacje o kartach do klienta
+#         emit('karty', {"reka": gracze[name].pokaz_reke(), "stol": [str(karta) for karta in stol]})
+#     else:
+#         emit('rozdanie', {"błąd": "Gracz nie został znaleziony."})
         
-def analiza_ukladu(reka):
-    kolory = [karta.kolory for karta in reka]
-    hierarchie = [karta.hierarchia for karta in reka]
+# def analiza_ukladu(reka):
+#     kolory = [karta.kolory for karta in reka]
+#     hierarchie = [karta.hierarchia for karta in reka]
     
-    # Sprawdź czy mamy kolor
-    if len(set(kolory)) == 1:
-        return {"uklad": "Kolor", "dodatkowe_informacje": None}
+#     # Sprawdź czy mamy kolor
+#     if len(set(kolory)) == 1:
+#         return {"uklad": "Kolor", "dodatkowe_informacje": None}
 
-    # Sprawdź czy mamy parę
-    pary = []
-    for i, karta1 in enumerate(reka):
-        for karta2 in reka[i+1:]:
-            if karta1.hierarchia == karta2.hierarchia:
-                pary.append(karta1.hierarchia)
-    if pary:
-        return {"uklad": "Para", "dodatkowe_informacje": pary[0]}
+#     # Sprawdź czy mamy parę
+#     pary = []
+#     for i, karta1 in enumerate(reka):
+#         for karta2 in reka[i+1:]:
+#             if karta1.hierarchia == karta2.hierarchia:
+#                 pary.append(karta1.hierarchia)
+#     if pary:
+#         return {"uklad": "Para", "dodatkowe_informacje": pary[0]}
 
-    # Sprawdź czy mamy dwie pary
-    unikalne_pary = list(set(pary))
-    if len(unikalne_pary) >= 2:
-        return {"uklad": "Dwie pary", "dodatkowe_informacje": unikalne_pary[:2]}
+#     # Sprawdź czy mamy dwie pary
+#     unikalne_pary = list(set(pary))
+#     if len(unikalne_pary) >= 2:
+#         return {"uklad": "Dwie pary", "dodatkowe_informacje": unikalne_pary[:2]}
 
-    # Sprawdź czy mamy trójkę
-    for karta in reka:
-        if reka.count(karta) == 3:
-            return {"uklad": "Trójka", "dodatkowe_informacje": karta.hierarchia}
+#     # Sprawdź czy mamy trójkę
+#     for karta in reka:
+#         if reka.count(karta) == 3:
+#             return {"uklad": "Trójka", "dodatkowe_informacje": karta.hierarchia}
 
-    # Sprawdź czy mamy karetę
-    for karta in reka:
-        if reka.count(karta) == 4:
-            return {"uklad": "Kareta", "dodatkowe_informacje": karta.hierarchia}
+#     # Sprawdź czy mamy karetę
+#     for karta in reka:
+#         if reka.count(karta) == 4:
+#             return {"uklad": "Kareta", "dodatkowe_informacje": karta.hierarchia}
 
-    # Sprawdź czy mamy strita
-    hierarchie_int = sorted([Talia.hierarchia.index(karta.hierarchia) for karta in reka])
-    if len(set(hierarchie_int)) == 5 and max(hierarchie_int) - min(hierarchie_int) == 4:
-        return {"uklad": "Strit", "dodatkowe_informacje": reka[-1].hierarchia}
+#     # Sprawdź czy mamy strita
+#     hierarchie_int = sorted([Talia.hierarchia.index(karta.hierarchia) for karta in reka])
+#     if len(set(hierarchie_int)) == 5 and max(hierarchie_int) - min(hierarchie_int) == 4:
+#         return {"uklad": "Strit", "dodatkowe_informacje": reka[-1].hierarchia}
 
-    # W przeciwnym razie zwróć kartę najwyższą
-    return {"uklad": "Karta najwyższa", "dodatkowe_informacje": reka[-1].hierarchia}
+#     # W przeciwnym razie zwróć kartę najwyższą
+#     return {"uklad": "Karta najwyższa", "dodatkowe_informacje": reka[-1].hierarchia}
 
 
 def pierwsze_rozdanie():
@@ -218,19 +282,25 @@ def pierwsze_rozdanie():
 @socketio.on('rezultat')
 def wynik(stan_gry):
     if stan_gry:
-        uklady = ['Kolor', 'Para', 'Dwie pary', 'Trójka', 'Kareta', 'Strit', 'Karta najwyższa']
-        wyniki = {}
-        for name, reka in stan_gry.items():
-            wyniki[name] = analiza_ukladu(reka)
+        hands = []
+
+        # uklady = ['Kolor', 'Para', 'Dwie pary', 'Trójka', 'Kareta', 'Strit', 'Karta najwyższa']
+        # wyniki = {}
+        # for name, reka in stan_gry.items():
+        #     wyniki[name] = determine_winner(reka)
+        for gracz in gracze: 
+            hands.append(gracz.pokaz_reke())
         
-        max_uklad = max(wyniki.values(), key=lambda x: uklady.index(x['uklad']))
-        zwyciezcy = [name for name, info in wyniki.items() if info['uklad'] == max_uklad['uklad']]
-        
-        if len(zwyciezcy) == 1:
-            zwyciezca = zwyciezcy[0]
-            emit('Wynik gry:', {" zwyciezcą jest: ": zwyciezca, " z układem: ": max_uklad['uklad'], "dodatkowe_informacje": max_uklad.get('dodatkowe_informacje', '')})
+        # max_uklad = max(wyniki.values(), key=lambda x: uklady.index(x['uklad']))
+        # zwyciezcy = [name for name, info in wyniki.items() if info['uklad'] == max_uklad['uklad']]
+        zwyciezca, max_uklad = determine_winner(hands)
+
+
+        if len(zwyciezca) == 1:
+            zwyciezca = list(gracze)[zwyciezca[0]]
+            emit('Wynik gry:', {" zwyciezcą jest: ": zwyciezca, " z układem: ": max_uklad })
         else:
-            emit('Wynik gry:', {"remis": zwyciezcy})
+            emit('Wynik gry:', {"remis": zwyciezca})
     else:
         emit('rezultat', {"błąd": "Brak danych o stanie gry."})
         return
