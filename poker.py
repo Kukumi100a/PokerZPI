@@ -205,25 +205,25 @@ def rejestracja(data):
         emit('rejestracja', {"błąd": "Nazwa jest wymagana."})
 
 @socketio.on('rozdanie')
-# def rozdanie(data):
-#     name = data.get('nazwa')
-#     if name in gracze:
-#         # Sprawdź, czy talia już istnieje
-#         if 'talia' not in globals():
-#             emit('rozdanie', {"błąd": "Brak talii kart."})
-#             return
+def rozdanie(data):
+    name = data.get('nazwa')
+    if name in gracze:
+        # Sprawdź, czy talia już istnieje
+        if 'talia' not in globals():
+            emit('rozdanie', {"błąd": "Brak talii kart."})
+            return
 
-#         # Rozdaj karty graczowi
-#         dealt_cards = talia.rozdaj_karte(2)
-#         gracze[name].dobierz_karte(dealt_cards)
+        # Rozdaj karty graczowi
+        dealt_cards = talia.rozdaj_karte(2)
+        gracze[name].dobierz_karte(dealt_cards)
 
-#         # Rozdaj karty na stół
-#         stol = talia.rozdaj_karte(5)
+        # Rozdaj karty na stół
+        stol = talia.rozdaj_karte(5)
 
-#         # Wyślij informacje o kartach do klienta
-#         emit('karty', {"reka": gracze[name].pokaz_reke(), "stol": [str(karta) for karta in stol]})
-#     else:
-#         emit('rozdanie', {"błąd": "Gracz nie został znaleziony."})
+        # Wyślij informacje o kartach do klienta
+        emit('karty', {"reka": gracze[name].pokaz_reke(), "stol": [str(karta) for karta in stol]})
+    else:
+        emit('rozdanie', {"błąd": "Gracz nie został znaleziony."})
         
 # def analiza_ukladu(reka):
 #     kolory = [karta.kolory for karta in reka]
