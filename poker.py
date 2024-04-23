@@ -317,7 +317,6 @@ def stworz_pokoj(data):
         emit('stworz_pokoj', {"error": "Pokój o tej nazwie już istnieje"})
     else:
         pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
-        pokoj.dodaj_gracza(wlasciciel)  # Dodaj właściciela do listy graczy w pokoju
         pokoje.append(pokoj)
         emit('stworz_pokoj', {"success": "Pokój został utworzony pomyślnie"})
 
