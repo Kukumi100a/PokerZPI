@@ -326,3 +326,19 @@ def test_dobierz_karte():
     # Sprawdzamy, czy nowe karty pochodzą z talii
     for karta in gracz.reka:
         assert karta not in karty_do_wymiany
+
+@pytest.fixture
+def przykladowy_pokoj():
+    # Tworzymy przykładowy pokój
+    return Pokoj("Testowy pokój", "Właściciel")
+
+def test_start_game(przykladowy_pokoj):
+    # Sprawdzamy, czy gra zostaje rozpoczęta, gdy właściciel wywoła start_game
+    przykladowy_pokoj.start_game("Właściciel")
+    assert przykladowy_pokoj.game_started == False  # Gra nie zostanie rozpoczęta, bo brakuje graczy
+
+    # Dodajemy jednego gracza
+    przykladowy_pokoj.dodaj_gracza("Gracz1")
+    # Sprawdzamy, czy gra zostaje rozpoczęta, gdy właściciel wywoła start_game i jest co najmniej dwóch graczy
+    przykladowy_pokoj.start_game("Właściciel")
+    assert przykladowy_pokoj.game_started == True

@@ -166,6 +166,8 @@ class Pokoj:
         self.haslo = haslo
         self.gracze = [wlasciciel]
         self.socket_id_wlasciciela = None
+        self.game_started = False
+
 
     def dodaj_gracza(self, gracz):
         self.gracze.append(gracz)
@@ -186,6 +188,18 @@ class Pokoj:
             return True
         else:
             return False
+
+    def start_game(self, gracz):
+        if gracz == self.wlasciciel:
+            if len(self.gracze) >= 2:
+                self.game_started = True
+                # Rozpoczęcie gry
+                print("Gra została rozpoczęta!")
+                pierwsze_rozdanie()
+            else:
+                print("W grze muszą brać udział co najmniej dwaj gracze.")
+        else:
+            print("Tylko właściciel pokoju może rozpocząć grę.")
 
 
 pokoje = []
@@ -343,15 +357,21 @@ def opusc_pokoj(data):
     pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
     if pokoj:
         if len(pokoj.gracze) > 1:
-            # Jeśli są inni gracze w pokoju, wybierz jednego z nich jako nowego właściciela
-            nowy_wlasciciel = [g for g in pokoj.gracze if g != gracz][0]
-            pokoj.wlasciciel = nowy_wlasciciel
-            emit('ustawienie_nazwy_wlasciciela', {'nazwa': nazwa_pokoju, 'wlasciciel': nowy_wlasciciel})
-            pokoj.usun_gracza(gracz)
+            nowy_wlasciciel = [g for g in pokoj.gracze if g != gracz]
+            if nowy_wlasciciel:
+                nowy_wlasciciel = nowy_wlasciciel[0]
+                pokoj.wlasciciel = nowy_wlasciciel
+                emit('ustawienie_nazwy_wlasciciela', {'nazwa': nazwa_pokoju, 'wlasciciel': nowy_wlasciciel})
+                pokoj.usun_gracza(gracz)
+            else:
+                pokoj.usun_gracza(gracz)
+                pokoje.remove(pokoj)
+                emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
         else:
             pokoj.usun_gracza(gracz)
             pokoje.remove(pokoj)
-            emit('opuszczanie_pokoju', {'success': f'Usunięto pokój {nazwa_pokoju}'})
+            emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
+
             
 @socketio.on('ustaw_haslo')
 def ustaw_haslo(data):
@@ -384,6 +404,14 @@ def sprawdz_graczy_w_pokoju(data):
     else:
         emit('lista_graczy_w_pokoju', {'error': 'Pokój o podanej nazwie nie istnieje'})
 
+@socketio.on('start_game')
+def start_game(data):
+    nazwa_pokoju = data.get('nazwa')
+    gracz = data.get('gracz')
+
+    pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+    if pokoj:
+        pokoj.start_game(gracz)
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)
