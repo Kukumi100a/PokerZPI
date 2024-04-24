@@ -380,7 +380,7 @@ def sprawdz_graczy_w_pokoju(data):
     pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
     if pokoj:
         gracze_w_pokoju = pokoj.gracze
-        emit('lista_graczy_w_pokoju', {'gracze': gracze_w_pokoju})
+        emit('lista_graczy_w_pokoju', {'gracze': gracze_w_pokoju, 'Właściciel': pokoj.wlasciciel})
     else:
         emit('lista_graczy_w_pokoju', {'error': 'Pokój o podanej nazwie nie istnieje'})
 
