@@ -342,9 +342,17 @@ def opusc_pokoj(data):
 
     pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
     if pokoj:
-        pokoj.usun_gracza(gracz)
-        emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
-
+        if len(pokoj.gracze) > 1:
+            # Jeśli są inni gracze w pokoju, wybierz jednego z nich jako nowego właściciela
+            nowy_wlasciciel = [g for g in pokoj.gracze if g != gracz][0]
+            pokoj.wlasciciel = nowy_wlasciciel
+            emit('ustawienie_nazwy_wlasciciela', {'nazwa': nazwa_pokoju, 'wlasciciel': nowy_wlasciciel})
+            pokoj.usun_gracza(gracz)
+        else:
+            pokoj.usun_gracza(gracz)
+            pokoje.remove(pokoj)
+            emit('opuszczanie_pokoju', {'success': f'Usunięto pokój {nazwa_pokoju}'})
+            
 @socketio.on('ustaw_haslo')
 def ustaw_haslo(data):
     nazwa_pokoju = data.get('nazwa')

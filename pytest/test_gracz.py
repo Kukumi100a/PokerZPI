@@ -138,7 +138,6 @@ def test_wynik_single_winner(sio_client):
     wynik({ " zwyciezcą jest: ": "gracz2", " z układem: ": "Trójka", **wyniki["gracz2"] })
 
 def test_wynik_draw(sio_client):
-    from poker import analiza_ukladu
     wyniki = {
         "gracz1": {"uklad": "Para", "dodatkowe_informacje": "Para Króli"},
         "gracz2": {"uklad": "Para", "dodatkowe_informacje": "Para Królowych"},
