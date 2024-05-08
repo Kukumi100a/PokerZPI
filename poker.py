@@ -152,6 +152,10 @@ class Gracz:
         self.stawka += self.zetony
         self.zetony = 0
 
+    def aktualizuj_pokoj(self, stara_nazwa, nowa_nazwa):
+        if self.pokoj == stara_nazwa:
+            self.pokoj = nowa_nazwa
+
 gracze = {
     "gracz1": Gracz("gracz1", 100),
     "gracz2": Gracz("gracz2", 100),
@@ -174,12 +178,17 @@ class Pokoj:
             return "Tylko właściciel pokoju może zmieniać ustawienia."
         
         if nowa_nazwa:
+            stare_id = self.nazwa
             self.nazwa = nowa_nazwa
+
+            for gracz in self.gracze:
+                gracz.aktualizuj_pokoj(stare_id, nowa_nazwa)
         
         if nowe_haslo:
             self.haslo = nowe_haslo
 
         return "Ustawienia pokoju zostały zmienione."
+
 
     def dodaj_gracza(self, gracz):
         self.gracze.append(gracz)
