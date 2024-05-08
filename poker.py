@@ -168,6 +168,18 @@ class Pokoj:
         self.socket_id_wlasciciela = None
         self.game_started = False
 
+    # Funkcja umożliwiająca właścicielowi zmianę ustawień pokoju
+    def zmien_ustawienia_pokoju(self, nowa_nazwa=None, nowe_haslo=None, wlasciciel=None):
+        if wlasciciel != self.wlasciciel:
+            return "Tylko właściciel pokoju może zmieniać ustawienia."
+        
+        if nowa_nazwa:
+            self.nazwa = nowa_nazwa
+        
+        if nowe_haslo:
+            self.haslo = nowe_haslo
+
+        return "Ustawienia pokoju zostały zmienione."
 
     def dodaj_gracza(self, gracz):
         self.gracze.append(gracz)
