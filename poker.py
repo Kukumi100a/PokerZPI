@@ -1,6 +1,6 @@
 import secrets
 from flask import Flask, render_template
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from collections import Counter
 
 app = Flask(__name__)
@@ -353,6 +353,7 @@ def stworz_pokoj(data):
     else:
         pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
         pokoje.append(pokoj)
+        join_room(nazwa_pokoju)
         emit('stworz_pokoj', {"success": "Pokój został utworzony pomyślnie"})
 
 @socketio.on('dolacz_do_pokoju')
@@ -368,7 +369,17 @@ def dolacz_do_pokoju(data):
         emit('dolacz_do_pokoju', {'error': 'Nieprawidłowe hasło do pokoju'})
     else:
         pokoj.dodaj_gracza(gracz)
+        join_room(nazwa_pokoju)
         emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {nazwa_pokoju}'})
+
+        # TODO: Wyodrębnij funkcję
+        pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+        if pokoj:
+            gracze_w_pokoju = pokoj.gracze
+            emit('lista_graczy_w_pokoju', {'gracze': gracze_w_pokoju, 'Wlasciciel': pokoj.wlasciciel}, room=nazwa_pokoju)
+        else:
+            # FIXME: Stało się coś bardzo złego, ale to raczej nie to powinno iść do graczy
+            emit('lista_graczy_w_pokoju', {'error': 'Pokój o podanej nazwie nie istnieje'}, room=nazwa_pokoju)
 
 @socketio.on('opusc_pokoj')
 def opusc_pokoj(data):
@@ -387,10 +398,21 @@ def opusc_pokoj(data):
             else:
                 pokoj.usun_gracza(gracz)
                 pokoje.remove(pokoj)
+                leave_room(nazwa_pokoju)
                 emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
+
+                # TODO: Wyodrębnij funkcję
+                pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+                if pokoj:
+                    gracze_w_pokoju = pokoj.gracze
+                    emit('lista_graczy_w_pokoju', {'gracze': gracze_w_pokoju, 'Wlasciciel': pokoj.wlasciciel}, room=nazwa_pokoju)
+                else:
+                    # FIXME: Stało się coś bardzo złego, ale to raczej nie to powinno iść do graczy
+                    emit('lista_graczy_w_pokoju', {'error': 'Pokój o podanej nazwie nie istnieje'}, room=nazwa_pokoju)
         else:
             pokoj.usun_gracza(gracz)
             pokoje.remove(pokoj)
+            leave_room(nazwa_pokoju)
             emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
 
             
