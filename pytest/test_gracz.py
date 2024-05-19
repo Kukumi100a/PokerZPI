@@ -1,8 +1,7 @@
 import pytest
 import socketio
 import eventlet
-from poker import Gracz, Karta, pierwsze_rozdanie, wynik, Pokoj, stworz_pokoj, pokoje, Talia
-
+from poker import Gracz, Karta, Pokoj, pokoje, Talia, Gra
 @pytest.fixture
 def sio_client():
     sio_client = socketio.Client()
@@ -151,10 +150,12 @@ def test_wynik_draw(sio_client):
     wynik({"remis": ["gracz1", "gracz2", "gracz3"]})
 
 def test_pierwsze_rozdanie():
-    from poker import pierwsze_rozdanie
+    from poker import Gra
 
+    gracze = ['Gracz 1', 'Gracz 2', 'Gracz 3', 'Gracz 4']
     # Wywołujemy funkcję pierwsze_rozdanie() bez argumentów
-    karty_graczy = pierwsze_rozdanie() 
+    gra = Gra()
+    karty_graczy = gra.pierwsze_rozdanie(gracze)
 
     # Sprawdzamy czy funkcja zwróciła poprawne dane
     assert len(karty_graczy) == 4
@@ -327,18 +328,12 @@ def test_dobierz_karte():
     for karta in gracz.reka:
         assert karta not in karty_do_wymiany
 
-@pytest.fixture
-def przykladowy_pokoj():
-    # Tworzymy przykładowy pokój
-    return Pokoj("Testowy pokój", "Właściciel")
-
-def test_start_game(przykladowy_pokoj):
-    # Sprawdzamy, czy gra zostaje rozpoczęta, gdy właściciel wywoła start_game
-    przykladowy_pokoj.start_game("Właściciel")
-    assert przykladowy_pokoj.game_started == False  # Gra nie zostanie rozpoczęta, bo brakuje graczy
-
-    # Dodajemy jednego gracza
-    przykladowy_pokoj.dodaj_gracza("Gracz1")
-    # Sprawdzamy, czy gra zostaje rozpoczęta, gdy właściciel wywoła start_game i jest co najmniej dwóch graczy
-    przykladowy_pokoj.start_game("Właściciel")
-    assert przykladowy_pokoj.game_started == True
+def test_start_game():
+    sio = socketio.Client()
+    sio.connect('http://localhost:5000')
+    def handle_start_game_result(data):
+        assert data['result'] == "Gra została rozpoczęta!"
+    sio.emit('start_game', {'gracz': 'Właściciel'})
+    sio.on('start_game_result', handle_start_game_result)
+    eventlet.sleep(1)
+    sio.disconnect()
