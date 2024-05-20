@@ -149,19 +149,6 @@ def test_wynik_draw(sio_client):
     # Przekazujemy dane o remisie jako argument
     wynik({"remis": ["gracz1", "gracz2", "gracz3"]})
 
-def test_pierwsze_rozdanie():
-    from poker import Gra
-
-    gracze = ['Gracz 1', 'Gracz 2', 'Gracz 3', 'Gracz 4']
-    # Wywołujemy funkcję pierwsze_rozdanie() bez argumentów
-    gra = Gra()
-    karty_graczy = gra.pierwsze_rozdanie(gracze)
-
-    # Sprawdzamy czy funkcja zwróciła poprawne dane
-    assert len(karty_graczy) == 4
-    for reka in karty_graczy.values():
-        assert len(reka) == 5
-
 def test_wyswietl_pokoje(sio_client):
     sio_client.connect('http://localhost:5000')
 
@@ -328,6 +315,108 @@ def test_dobierz_karte():
     for karta in gracz.reka:
         assert karta not in karty_do_wymiany
 
+def create_sample_deck():
+    return Talia()
+
+# Utwórz przykładowych graczy do testów
+def create_sample_players():
+    return [Gracz("gracz1", 100), Gracz("gracz2", 100)]
+
+# Test inicjalizacji klasy Gra
+def test_init():
+    gracze = create_sample_players()
+    talia = create_sample_deck()
+    gra = Gra(gracze, talia)
+    assert len(gra.gracze) == 2
+    assert gra.talia == talia
+    assert gra.stol == []
+    assert gra.aktualny_gracz == None
+    assert gra.aktualna_stawka == 0
+    assert gra.runda == 0
+
+# Test rozpoczęcia gry
+def test_start_game():
+    gracze = create_sample_players()
+    talia = create_sample_deck()
+    gra = Gra(gracze, talia)
+    gra.start_game()
+    assert len(gra.gracze[0].reka) == 5  # Sprawdź, czy pierwszy gracz ma 5 kart na ręce
+    assert gra.aktualny_gracz == gracze[0]  # Sprawdź, czy pierwszy gracz jest aktualnym graczem
+    assert gra.runda == 1  # Sprawdź, czy runda została ustawiona na 1
+
+# Test wykonania ruchu przez gracza
+def test_make_move():
+    gracze = create_sample_players()
+    talia = create_sample_deck()
+    gra = Gra(gracze, talia)
+    gra.start_game()
+
+    # Wykonaj ruch: wymiana kart
+    karta_do_wymiany = gra.aktualny_gracz.reka[0]
+    gra.wykonaj_ruch('dobierz', karty_do_wymiany=[karta_do_wymiany])
+
+    # Wykonaj ruch: postawienie stawki
+    gra.wykonaj_ruch('postawienie', stawka=10)
+    assert gra.aktualna_stawka == 10
+
+    # Wykonaj ruch: sprawdzenie
+    gra.wykonaj_ruch('sprawdzenie')
+    assert gra.aktualny_gracz.stawka == 10
+    assert gra.aktualny_gracz.zetony == 90
+
+    # Dodaj dodatkową stawkę i sprawdzenie
+    gra.wykonaj_ruch('postawienie', stawka=10)
+    assert gra.aktualna_stawka == 20
+    gra.wykonaj_ruch('sprawdzenie')
+    assert gra.aktualny_gracz.stawka == 20
+    assert gra.aktualny_gracz.zetony == 80
+
+    # Wykonaj ruch: podbicie
+    gra.wykonaj_ruch('podbicie', stawka=20)
+
+    assert gra.aktualny_gracz.stawka == 40  # Sprawdź, czy stawka gracza po podbiciu jest poprawna
+
+    # Wykonaj ruch: pas
+    gra.wykonaj_ruch('pas')
+    assert gra.aktualny_gracz.stawka == 0
+
+    # Wykonaj ruch: podbicie
+    gra.wykonaj_ruch('podbicie', stawka=20)
+
+    assert gra.aktualny_gracz.stawka == 20  # Sprawdź, czy stawka gracza po podbiciu jest poprawna
+
+# Test kolejnej rundy
+def test_next_round():
+    gracze = create_sample_players()
+    talia = create_sample_deck()
+    gra = Gra(gracze, talia)
+    gra.start_game()
+    gra.kolejna_runda()  # Przetestuj kolejną rundę bez ruchów graczy
+    assert gra.stol == []  # Sprawdź, czy stół jest pusty po kolejnej rundzie
+
+# Test zakończenia rundy
+def test_end_round():
+    gracze = create_sample_players()
+    talia = create_sample_deck()
+    gra = Gra(gracze, talia)
+    gra.start_game()
+    gra.wykonaj_ruch('postawienie', stawka=10)
+    gra.wykonaj_ruch('sprawdzenie')
+    gra.zakoncz_runde()
+    assert gra.stol == []  # Sprawdź, czy stół jest pusty po zakończeniu rundy
+    assert gra.aktualna_stawka == 0  # Sprawdź, czy aktualna stawka została wyzerowana po rundzie
+
+# Test sprawdzenia końca gry
+def test_check_end_game():
+    gracze = create_sample_players()
+    talia = create_sample_deck()
+    gra = Gra(gracze, talia)
+    gra.start_game()
+    gra.gracze[1].zetony = 0  # Ustaw gracza 2 na brak żetonów
+    gra.sprawdz_koniec_gry()
+    assert gra.koniec_gry == True  # Sprawdź, czy gra zakończyła się po wyzerowaniu żetonów przez gracza 2
+
+
 def test_start_game():
     sio = socketio.Client()
     sio.connect('http://localhost:5000')
@@ -336,4 +425,36 @@ def test_start_game():
     sio.emit('start_game', {'gracz': 'Właściciel'})
     sio.on('start_game_result', handle_start_game_result)
     eventlet.sleep(1)
+    sio.disconnect()
+
+# Test dla funkcji wynik
+def test_wynik():
+    # Tworzenie klienta Socket.IO i łączenie się z serwerem
+    sio = socketio.Client()
+    sio.connect('http://localhost:5000')
+
+    # Rejestruj handler na serwerze
+    @sio.on('wynik')
+    def on_result(data):
+        assert data == {'zwyciezcą jest:': 'gracz1', 'z układem:': 'High Card'}
+
+    # Symulacja gry
+    gracze = create_sample_players()
+    talia = create_sample_deck()
+    gra = Gra(gracze, talia)
+    gra.start_game()
+    gra.wykonaj_ruch('postawienie', stawka=10)
+    gra.wykonaj_ruch('sprawdzenie')
+    gra.zakoncz_runde()
+
+    # Wywołaj metodę sprawdz_koniec_gry na serwerze
+    gra.sprawdz_koniec_gry()
+
+    # Zaczekaj na otrzymanie danych od serwera
+    sio.emit('wynik')
+
+    # Zatrzymaj pętlę zdarzeń
+    sio.sleep(0.1)
+
+    # Rozłącz się z serwerem
     sio.disconnect()

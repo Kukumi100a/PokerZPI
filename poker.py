@@ -64,9 +64,6 @@ class Gracz:
         self.zetony -= self.stawka
         self.stawka = 0
 
-    def odpusc(self):
-        pass  
-
     def sprawdzenie(self, stawka):
         if self.zetony >= stawka:
             self.zetony -= stawka
@@ -83,10 +80,9 @@ class Gracz:
             self.stawka += self.zetony
             self.zetony = 0
 
-    def podbicie(self, aktualna_stawka, stawka):
-        roznica = aktualna_stawka + stawka - self.stawka
-        self.stawka += min(self.zetony, roznica)
-        self.zetony -= min(self.zetony, roznica)
+    def podbicie(self, stawka):
+        self.stawka += stawka
+        self.zetony -= stawka
 
     def va_banque(self):
         self.stawka += self.zetony
@@ -156,9 +152,8 @@ class Pokoj:
             if len(self.gracze) >= 2:
                 self.game_started = True
                 print("Gra została rozpoczęta!")
-                talia = Talia()  # Utwórz obiekt talii
-                karty_graczy = Gra.pierwsze_rozdanie(gracze)  # Rozdaj początkowe karty graczom
-                stol = Gra.rozdaj_karty_na_stol(talia)  # Rozdaj karty na stół
+                # Przekazanie żądania rozpoczęcia gry do klasy Gra
+                Gra.start_game()
             else:
                 print("W grze muszą brać udział co najmniej dwaj gracze.")
         else:
@@ -216,21 +211,77 @@ class Pokoj:
    
 
 class Gra:
-    @staticmethod
-    def pierwsze_rozdanie(gracze):
-        talia = Talia()
-        karty_graczy = {}
-        for gracz_name in gracze:
-            reka = []
-            for _ in range(5):
-                karta = talia.rozdaj_karte()
-                reka.append(karta)
-            karty_graczy[gracz_name] = reka
-        return karty_graczy
+    def __init__(self, gracze, talia):
+        self.gracze = gracze
+        self.talia = talia
+        self.stol = []
+        self.aktualny_gracz = None
+        self.aktualna_stawka = 0
+        self.runda = 0
+        self.koniec_gry = False  
 
-    @staticmethod
-    def rozdaj_karty_na_stol(talia):
-        return talia.rozdaj_karte(5)
+        
+    def start_game(self):
+        # Tasowanie talii i rozdanie początkowych kart
+        self.talia.tasuj()
+        for gracz in self.gracze:
+            gracz.reka = self.talia.rozdaj_karte(5)
+        # Ustawienie pierwszego gracza jako aktualnego gracza
+        self.aktualny_gracz = self.gracze[0]
+        self.runda = 1
+
+    def kolejna_runda(self):
+        # Sprawdzenie czy wszyscy gracze wykonali ruch
+        if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze):
+            # Jeśli tak, zakończ rundę
+            self.zakoncz_runde()
+            # Sprawdzenie czy gra powinna się zakończyć
+            self.sprawdz_koniec_gry()
+        else:
+            # W przeciwnym razie, przejdź do kolejnego gracza
+            self.kolejny_gracz()
+            # Sprawdzenie czy gra powinna się zakończyć
+            self.sprawdz_koniec_gry()
+
+    def wykonaj_ruch(self, ruch, stawka=0, karty_do_wymiany=None):
+        if ruch == "dobierz":
+            self.aktualny_gracz.dobierz_karte(karty_do_wymiany, self.talia)
+        elif ruch == "postawienie":
+            self.aktualny_gracz.postawienie(stawka)
+            self.aktualna_stawka += stawka
+        elif ruch == "sprawdzenie":
+            roznica = self.aktualna_stawka - self.aktualny_gracz.stawka
+            self.aktualny_gracz.sprawdzenie(roznica)
+        elif ruch == "pas":
+            self.aktualny_gracz.pas()
+            self.aktualna_stawka = 0
+        elif ruch == "podbicie":
+            self.aktualna_stawka += stawka  # Aktualizacja aktualnej stawki
+            self.aktualny_gracz.podbicie(stawka)  # Modify here
+        elif ruch == "va_banque":
+            self.aktualny_gracz.va_banque()
+            self.aktualna_stawka += self.aktualny_gracz.stawka
+                
+    def kolejny_gracz(self):
+        # Znalezienie indeksu aktualnego gracza
+        idx = self.gracze.index(self.aktualny_gracz)
+        # Ustawienie następnego gracza jako aktualny
+        self.aktualny_gracz = self.gracze[(idx + 1) % len(self.gracze)]
+        # Jeśli aktualny gracz spasował, przejdź do kolejnego gracza
+        if self.aktualny_gracz.stawka == 0:
+            self.kolejny_gracz()
+
+
+    def rozdaj_karty(self):
+        if self.runda == 2:
+            # Jeśli to druga runda, dodaj trzy karty do stołu
+            self.stol.extend(self.talia.rozdaj_karte(3))
+        elif self.runda == 3:
+            # Jeśli to trzecia runda, dodaj jedną kartę do stołu
+            self.stol.extend(self.talia.rozdaj_karte(1))
+        elif self.runda == 4:
+            # Jeśli to czwarta runda, dodaj ostatnią kartę do stołu
+            self.stol.extend(self.talia.rozdaj_karte(1))
     
     @staticmethod
     def determine_winner(hands):
@@ -290,23 +341,56 @@ class Gra:
             else:
                 return "Flush"
             
+    def zakoncz_runde(self):
+        hands = [gracz.reka + self.stol for gracz in self.gracze]
+        winners, best_hand_rank = self.determine_winner(hands)
+        if len(winners) == 1:
+            winning_player = self.gracze[winners[0]]
+            winning_player.zetony += self.aktualna_stawka  # Aktualizacja na aktualna_stawka
+            self.aktualna_stawka = 0  # Zerowanie aktualna_stawka
+        else:
+            for idx in winners:
+                winning_player = self.gracze[idx]
+                winning_player.zetony += self.aktualna_stawka // len(winners)  # Aktualizacja na aktualna_stawka
+            self.aktualna_stawka = 0  # Zerowanie aktualna_stawka
+
+        # Resetowanie stanu gry
+        self.stol = []
+        # Sprawdzenie czy gra powinna się zakończyć
+        if self.sprawdz_koniec_gry():
+            self.koniec_gry = True
+            
+    def sprawdz_koniec_gry(self):
+        # Sprawdzenie czy gra powinna się zakończyć
+        liczba_graczy = len(self.gracze)
+        aktywni_gracze = sum(1 for gracz in self.gracze if gracz.zetony > 0)
+        if aktywni_gracze == 1:
+            self.koniec_gry = True
+            return True  # Zwracanie informacji o zakończeniu gry
+        return False  # Zwracanie informacji o kontynuacji gry
+            
     @staticmethod
     @socketio.on('rezultat')
     def wynik(stan_gry):
         if stan_gry:
-            hands = []
-            for gracz in gracze:
-                hands.append(gracz.pokaz_reke())
-            zwyciezca, max_uklad = Gra.determine_winner(hands)
+            # Sprawdzenie stanu gry
+            koniec_gry = Gra.sprawdz_koniec_gry()
+            
+            if koniec_gry:
+                hands = []
+                for gracz in gracze:
+                    hands.append(gracz.pokaz_reke())
+                zwyciezca, max_uklad = Gra.determine_winner(hands)
 
-            if len(zwyciezca) == 1:
-                zwyciezca = list(gracze)[zwyciezca[0]]
-                emit('Wynik gry:', {" zwyciezcą jest: ": zwyciezca, " z układem: ": max_uklad })
+                if len(zwyciezca) == 1:
+                    zwyciezca = list(gracze)[zwyciezca[0]]
+                    emit('Wynik gry:', {"zwyciezcą jest: ": zwyciezca, " z układem: ": max_uklad})
+                else:
+                    emit('Wynik gry:', {"remis": zwyciezca})
             else:
-                emit('Wynik gry:', {"remis": zwyciezca})
+                emit('rezultat', {"komunikat": "Gra nadal trwa."})
         else:
             emit('rezultat', {"błąd": "Brak danych o stanie gry."})
-            return
 
 class Menu:
 
