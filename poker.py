@@ -155,15 +155,16 @@ class Pokoj:
     @socketio.on('start_game')
     def start_game(data):
         id = data.get('id')
-        gracze=data.get('gracze')
+        gracze_str = data.get('gracze')
         pokoj = next((p for p in pokoje if p.id == id), None)
-        if gracze == pokoj.gracze:
+        if gracze_str == pokoj.gracze:
             if len(pokoj.gracze) >= 2:
                 pokoj.game_started = True
                 print("Gra została rozpoczęta!")
                 # Przekazanie żądania rozpoczęcia gry do klasy Gra
                 ########## obiekt
-                pokoj.gra = Gra(id, gracze)
+                nowi_gracze = [ Gracz(nick, 100) for nick in gracze_str ]
+                pokoj.gra = Gra(id, nowi_gracze)
                 pokoj.gra.start_game()
                 emit('start_game', {'success': f'Gra w pokoju {pokoj.nazwa} rozpoczęła się'}, room=pokoj.id)
             else:
