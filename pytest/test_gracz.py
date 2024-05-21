@@ -245,9 +245,10 @@ def test_sprawdz_graczy_w_pokoju(sio_client):
 
     nazwa_pokoju = 'Testowy pokój'
     gracz = 'Testowy gracz'
+    id = 1234
 
     # Tworzymy fikcyjny pokój i dodajemy do niego graczy
-    p = Pokoj(nazwa_pokoju, 'Właściciel')
+    p = Pokoj(id,nazwa_pokoju, 'Właściciel')
     p.dodaj_gracza(gracz)
     p.dodaj_gracza('Inny gracz')
     pokoje.append(p)
@@ -293,9 +294,6 @@ def test_dobierz_karte():
     for karta in gracz.reka:
         assert karta not in karty_do_wymiany
 
-def create_sample_deck():
-    return Talia()
-
 # Utwórz przykładowych graczy do testów
 def create_sample_players():
     return [Gracz("gracz1", 100), Gracz("gracz2", 100)]
@@ -303,10 +301,8 @@ def create_sample_players():
 # Test inicjalizacji klasy Gra
 def test_init():
     gracze = create_sample_players()
-    talia = create_sample_deck()
-    gra = Gra(gracze, talia)
-    assert len(gra.gracze) == 2
-    assert gra.talia == talia
+    gra = Gra(id, gracze)
+    assert len(gracze) == 2
     assert gra.stol == []
     assert gra.aktualny_gracz == None
     assert gra.aktualna_stawka == 0
@@ -326,7 +322,7 @@ def test_start_game():
 def test_make_move():
     gracze = create_sample_players()
     talia = create_sample_deck()
-    gra = Gra(gracze, talia)
+    gra = Gra(id, gracze)
     gra.start_game()
 
     # Wykonaj ruch: wymiana kart
@@ -366,8 +362,7 @@ def test_make_move():
 # Test kolejnej rundy
 def test_next_round():
     gracze = create_sample_players()
-    talia = create_sample_deck()
-    gra = Gra(gracze, talia)
+    gra = Gra(id, gracze)
     gra.start_game()
     gra.kolejna_runda()  # Przetestuj kolejną rundę bez ruchów graczy
     assert gra.stol == []  # Sprawdź, czy stół jest pusty po kolejnej rundzie
@@ -375,8 +370,7 @@ def test_next_round():
 # Test zakończenia rundy
 def test_end_round():
     gracze = create_sample_players()
-    talia = create_sample_deck()
-    gra = Gra(gracze, talia)
+    gra = Gra(id, gracze)
     gra.start_game()
     gra.wykonaj_ruch('postawienie', stawka=10)
     gra.wykonaj_ruch('sprawdzenie')
@@ -387,8 +381,7 @@ def test_end_round():
 # Test sprawdzenia końca gry
 def test_check_end_game():
     gracze = create_sample_players()
-    talia = create_sample_deck()
-    gra = Gra(gracze, talia)
+    gra = Gra(id, gracze)
     gra.start_game()
     gra.gracze[1].zetony = 0  # Ustaw gracza 2 na brak żetonów
     gra.sprawdz_koniec_gry()
@@ -418,8 +411,7 @@ def test_wynik():
 
     # Symulacja gry
     gracze = create_sample_players()
-    talia = create_sample_deck()
-    gra = Gra(gracze, talia)
+    gra = Gra(id, gracze)
     gra.start_game()
     gra.wykonaj_ruch('postawienie', stawka=10)
     gra.wykonaj_ruch('sprawdzenie')
