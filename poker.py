@@ -478,7 +478,7 @@ class Menu:
         nazwa_pokoju = data.get('nazwa')
         haslo = data.get('haslo')
         wlasciciel = data.get('wlasciciel')
-        join_room(id)
+        join_room(id.__str__())
 
         if not nazwa_pokoju or not wlasciciel:
             emit('stworz_pokoj', {"error": "Brak wymaganych danych"})
