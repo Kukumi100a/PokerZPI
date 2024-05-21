@@ -289,10 +289,15 @@ class Gra:
     @socketio.on('dobierz')
     def handle_dobierz(data):
         id_pokoju = data.get('id')
-        karty_do_wymiany = data.get('karty_do_wymiany')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
-        pokoj.gra.wykonaj_ruch('dobierz', karty_do_wymiany=karty_do_wymiany)
-        emit('aktualizacja', {'message': 'Gracz dobrał karty'})
+        gra = pokoj.gra
+        karty_do_wymiany = data.get('karty_do_wymiany')
+        gra.wykonaj_ruch('dobierz', karty_do_wymiany=karty_do_wymiany)
+        
+        gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
+        emit('aktualizacja', {'message': 'Karty', 'reka': gracz.reka})
+        # emit('aktualizacja', {'message': 'Gracz dobrał karty'})
+
 
     @staticmethod
     @socketio.on('postawienie')
@@ -301,7 +306,7 @@ class Gra:
         stawka = data.get('stawka')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
-        emit('aktualizacja', {'message': 'Gracz postawił stawkę', 'stawka': stawka})
+        emit('aktualizacja', {'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('sprawdzenie')
@@ -322,19 +327,19 @@ class Gra:
     @staticmethod
     @socketio.on('podbicie')
     def handle_podbicie(data):
-        id_pokoju = data.get('id')
         stawka = data.get('stawka')
+        id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
-        emit('aktualizacja', {'message': 'Gracz podbił stawkę', 'stawka': stawka})
+        emit('aktualizacja', {'message': 'Gracz podbił stawkę', 'stawka': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('va_banque')
     def handle_va_banque(data):
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
-        pokoj.gra.wykonaj_ruch('va_banque')
-        emit('aktualizacja', {'message': 'Gracz zagrał va banque'})
+        pokoj.gra.gra.wykonaj_ruch('va_banque')
+        emit('aktualizacja', {'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
 
     def kolejny_gracz(self):
