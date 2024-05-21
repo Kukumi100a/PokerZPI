@@ -277,6 +277,15 @@ class Gra:
             self.aktualna_stawka += self.aktualny_gracz.stawka
 
     @staticmethod
+    @socketio.on('sprawdz_karty')
+    def handle_dobierz(data):
+        id_pokoju = data.get('id')
+        gracz = data.get('gracz')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
+        emit('aktualizacja', {'message': 'Karty', 'reka': gracz.reka})
+
+    @staticmethod
     @socketio.on('dobierz')
     def handle_dobierz(data):
         id_pokoju = data.get('id')
