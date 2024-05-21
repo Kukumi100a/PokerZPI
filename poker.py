@@ -92,10 +92,6 @@ class Gracz:
         self.stawka += self.zetony
         self.zetony = 0
 
-    def aktualizuj_pokoj(self, stara_nazwa, nowa_nazwa):
-        if self.pokoj == stara_nazwa:
-            self.pokoj = nowa_nazwa
-
 gracze = {
     "gracz1": Gracz("gracz1", 100),
     "gracz2": Gracz("gracz2", 100),
@@ -105,7 +101,7 @@ gracze = {
 
 class Pokoj:
     def __init__(self, id, nazwa, wlasciciel, haslo=None):
-        self.id = id
+        self.id = str(id)
         self.nazwa = nazwa
         self.wlasciciel = wlasciciel
         self.haslo = haslo
@@ -119,7 +115,7 @@ class Pokoj:
     @staticmethod
     @socketio.on('zmiana_ustawien')
     def zmien_ustawienia_pokoju(data):
-        id_pokoju = data.get('id')
+        id = data.get('id')
         nowa_nazwa_pokoju=data.get('nazwa')
         nowe_haslo=data.get('haslo')
         wlasciciel=data.get('wlasciciel')
@@ -130,13 +126,11 @@ class Pokoj:
         if nowa_nazwa_pokoju:
             stara_nazwa = pokoj.nazwa
             pokoj.nazwa = nowa_nazwa_pokoju
-
-            for gracz in pokoj.gracze:
-                gracz.aktualizuj_pokoj(stara_nazwa, nowa_nazwa_pokoju)
-        
+            emit('start_game', {'success': f'Gra w pokoju {pokoj.nazwa} rozpoczęła się'}, room=pokoj.id)   
         if nowe_haslo:
             pokoj.haslo = nowe_haslo
 
+        emit('zmiana_ustawien', {'success': f'Ustawienia pokoju {pokoj.nazwa} zostały zmienione!'})   
         return "Ustawienia pokoju zostały zmienione."
 
     def dodaj_gracza(self, gracz):
@@ -441,7 +435,7 @@ class Menu:
         else:
             pokoj = Pokoj(id, nazwa_pokoju, wlasciciel, haslo)
             pokoje.append(pokoj)
-            emit('stworz_pokoj', {"success": "Pokój został utworzony pomyślnie", "ID:": id})
+            emit('stworz_pokoj', {"success": "Pokój został utworzony pomyślnie", "ID": id})
 
     @staticmethod
     @socketio.on('dolacz_do_pokoju')
@@ -459,7 +453,7 @@ class Menu:
             emit('dolacz_do_pokoju', {'error': 'Nieprawidłowe hasło do pokoju'})
         else:
             pokoj.dodaj_gracza(gracz)
-            emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {nazwa_pokoju}'})
+            emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {pokoj.nazwa}'})
 
     @staticmethod
     @socketio.on('wyswietl_pokoje')

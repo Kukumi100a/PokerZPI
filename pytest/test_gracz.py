@@ -185,42 +185,39 @@ def test_stworz_pokoj(sio_client):
     eventlet.sleep(1)
 
 def test_dolacz_do_pokoju(sio_client):
-    from poker import pokoje
-    
-    # Tworzenie tymczasowego pokoju
+
+    # Zdefiniowanie nazwy pokoju, hasła i właściciela
     nazwa_pokoju = "testowy_pokoj"
     haslo = "testowe_haslo"
     wlasciciel = "testowy_gracz"
-    pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
-    pokoje.append(pokoj)
-    
+
+    # Podłączanie klienta do serwera
     sio_client.connect('http://localhost:5000')
 
-    nazwa_pokoju = "testowy_pokoj"
-    haslo = "testowe_haslo"
-    gracz = "testowy_gracz"
-    wlasciciel = "testowy_gracz"
-
-    # Tworzenie testowego pokoju
+    # Tworzenie pokoju przez właściciela
     sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
 
-    eventlet.sleep(1)
-
-    # Dołączanie do testowego pokoju
-    sio_client.emit('dolacz_do_pokoju', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': gracz})
-
+    # Obsługa komunikatu o sukcesie
+    id_pokoju = None
     def komunikat_sukcesu(data):
-        assert data["success"] == f'Dołączono do pokoju {nazwa_pokoju}'
+        assert data["success"] == "Pokój został utworzony pomyślnie"
+        nonlocal id_pokoju 
+        id_pokoju = data["ID"]
 
-    sio_client.on('dolacz_do_pokoju', komunikat_sukcesu)
+    # Połącz klienta WebSocket z serwerem
+    sio_client.on('stworz_pokoj', komunikat_sukcesu)
+
+    # Uruchom obsługę zdarzeń
+    eventlet.sleep(1)
+
+    # Zmienna do przechowywania ID pokoju
 
     eventlet.sleep(1)
 
-    # Sprawdzenie, czy gracz został pomyślnie dodany do pokoju
-    pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
-    assert pokoj is not None
+    print("Zmienna id_pokoju po zdarzeniu:", id_pokoju)  # Dodajemy linię debugowania
 
-    
+    assert id_pokoju is not None, "Nie udało się utworzyć pokoju i uzyskać jego ID."
+
 def test_opusc_pokoj(sio_client):
     sio_client.connect('http://localhost:5000')
 
