@@ -225,7 +225,7 @@ class Pokoj:
 class Gra:
     def __init__(self, id, gracze):
         self.id = id 
-        self.gracze = gracze
+        self.gracze = [gracze[name] for name in gracze]
         self.talia = Talia()
         self.stol = []
         self.aktualny_gracz = None
