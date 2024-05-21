@@ -226,7 +226,7 @@ class Gra:
     def __init__(self, id, gracze):
         self.id = id 
         self.gracze = gracze
-        self.talia = Talia
+        self.talia = Talia()
         self.stol = []
         self.aktualny_gracz = None
         self.aktualna_stawka = 0
