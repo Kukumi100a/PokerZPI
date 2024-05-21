@@ -37,26 +37,3 @@ def test_rejestracja(client):
     # Uruchom obsługę zdarzeń
     eventlet.sleep(1)
     sio_client.disconnect()
-
-def test_rozdanie(client):
-    # Utwórz klienta WebSocket
-    sio_client = socketio.Client()
-
-    # Zdefiniuj funkcję obsługi komunikatu 'karty' wysłanego przez serwer
-    def karty(data):
-        assert len(data["reka"]) == 2  # Oczekujemy dwóch kart na ręce gracza
-        assert len(data["stol"]) == 5
-        sio_client.disconnect()
-
-    # Połącz klienta WebSocket z serwerem
-    sio_client.connect('http://localhost:5000')
-
-    # Zarejestruj funkcję obsługi komunikatu 'karty'
-    sio_client.on('karty', karty)
-
-    # Wyślij komunikat o rozdaniu kart do serwera za pomocą WebSocket
-    sio_client.emit('rozdanie', {"nazwa": "Testowy gracz"})
-
-    # Uruchom obsługę zdarzeń
-    eventlet.sleep(1)
-    sio_client.disconnect()

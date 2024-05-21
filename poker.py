@@ -119,12 +119,10 @@ class Pokoj:
         nowa_nazwa_pokoju=data.get('nazwa')
         nowe_haslo=data.get('haslo')
         wlasciciel=data.get('wlasciciel')
+        pokoj = next((p for p in pokoje if p.id == id), None)
         if wlasciciel != pokoj.wlasciciel:
             return "Tylko właściciel pokoju może zmieniać ustawienia."
-        
-        pokoj = next((p for p in pokoje if p.id == id), None)
         if nowa_nazwa_pokoju:
-            stara_nazwa = pokoj.nazwa
             pokoj.nazwa = nowa_nazwa_pokoju
             emit('start_game', {'success': f'Gra w pokoju {pokoj.nazwa} rozpoczęła się'}, room=pokoj.id)   
         if nowe_haslo:

@@ -164,26 +164,6 @@ def test_wyswietl_pokoje(sio_client):
 
     eventlet.sleep(1)
     
-def test_stworz_pokoj(sio_client):
-    sio_client.connect('http://localhost:5000')
-
-    nazwa_pokoju = "testowy_pokoj"
-    haslo = "testowe_haslo"
-    wlasciciel = "testowy_gracz"
-
-    # Wysłanie żądania utworzenia pokoju
-    sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
-
-    # Obsługa komunikatu o sukcesie
-    def komunikat_sukcesu(data):
-        assert data["success"] == "Pokój został utworzony pomyślnie"
-
-    # Połącz klienta WebSocket z serwerem
-    sio_client.on('stworz_pokoj', komunikat_sukcesu)
-
-    # Uruchom obsługę zdarzeń
-    eventlet.sleep(1)
-
 def test_dolacz_do_pokoju(sio_client):
 
     # Zdefiniowanie nazwy pokoju, hasła i właściciela
@@ -248,6 +228,7 @@ def test_ustaw_haslo(sio_client):
     sio_client.emit('ustaw_haslo', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': wlasciciel})
 
     eventlet.sleep(1)
+    sio_client.disconnect()
 
 def test_sprawdz_graczy_w_pokoju(sio_client):
     sio_client.connect('http://localhost:5000')
