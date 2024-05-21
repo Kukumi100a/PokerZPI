@@ -1,7 +1,9 @@
 import secrets
 from flask import Flask, render_template
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from collections import Counter
+import time 
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(16)
@@ -32,6 +34,8 @@ class Talia:
         secrets.SystemRandom().shuffle(self.karty)
 
     def rozdaj_karte(self, ilosc=1):
+        if len(self.karty) < ilosc:
+            raise ValueError("Brak wystarczającej liczby kart w talii")
         wydane_karty = []
         for _ in range(ilosc):
             karta = self.karty.pop()
@@ -100,28 +104,38 @@ gracze = {
 }
 
 class Pokoj:
-    def __init__(self, nazwa, wlasciciel, haslo=None):
+    def __init__(self, id, nazwa, wlasciciel, haslo=None):
+        self.id = id
         self.nazwa = nazwa
         self.wlasciciel = wlasciciel
         self.haslo = haslo
         self.gracze = [wlasciciel]
         self.socket_id_wlasciciela = None
         self.game_started = False
+        self.gra = None
 
     # Funkcja umożliwiająca właścicielowi zmianę ustawień pokoju
-    def zmien_ustawienia_pokoju(self, nowa_nazwa=None, nowe_haslo=None, wlasciciel=None):
-        if wlasciciel != self.wlasciciel:
+    
+    @staticmethod
+    @socketio.on('zmiana_ustawien')
+    def zmien_ustawienia_pokoju(data):
+        id_pokoju = data.get('id')
+        nowa_nazwa_pokoju=data.get('nazwa')
+        nowe_haslo=data.get('haslo')
+        wlasciciel=data.get('wlasciciel')
+        if wlasciciel != pokoj.wlasciciel:
             return "Tylko właściciel pokoju może zmieniać ustawienia."
         
-        if nowa_nazwa:
-            stare_id = self.nazwa
-            self.nazwa = nowa_nazwa
+        pokoj = next((p for p in pokoje if p.id == id), None)
+        if nowa_nazwa_pokoju:
+            stara_nazwa = pokoj.nazwa
+            pokoj.nazwa = nowa_nazwa_pokoju
 
-            for gracz in self.gracze:
-                gracz.aktualizuj_pokoj(stare_id, nowa_nazwa)
+            for gracz in pokoj.gracze:
+                gracz.aktualizuj_pokoj(stara_nazwa, nowa_nazwa_pokoju)
         
         if nowe_haslo:
-            self.haslo = nowe_haslo
+            pokoj.haslo = nowe_haslo
 
         return "Ustawienia pokoju zostały zmienione."
 
@@ -147,13 +161,19 @@ class Pokoj:
     
     @staticmethod
     @socketio.on('start_game')
-    def start_game(self, gracz):
-        if gracz == self.wlasciciel:
-            if len(self.gracze) >= 2:
-                self.game_started = True
+    def start_game(data):
+        id = data.get('id')
+        gracze=data.get('gracze')
+        pokoj = next((p for p in pokoje if p.id == id), None)
+        if gracze == pokoj.gracze:
+            if len(pokoj.gracze) >= 2:
+                pokoj.game_started = True
                 print("Gra została rozpoczęta!")
                 # Przekazanie żądania rozpoczęcia gry do klasy Gra
-                Gra.start_game()
+                ########## obiekt
+                pokoj.gra = Gra(id, gracze)
+                pokoj.gra.start_game()
+                emit('start_game', {'success': f'Gra w pokoju {pokoj.nazwa} rozpoczęła się'}, room=pokoj.id)
             else:
                 print("W grze muszą brać udział co najmniej dwaj gracze.")
         else:
@@ -163,10 +183,8 @@ class Pokoj:
     @staticmethod
     @socketio.on('sprawdz_graczy_w_pokoju')
     def sprawdz_graczy_w_pokoju(data):
-        nazwa_pokoju = data.get('nazwa')
-        gracz = data.get('gracz')
-
-        pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+        id = data.get('id')
+        pokoj = next((p for p in pokoje if p.id == id), None)
         if pokoj:
             gracze_w_pokoju = pokoj.gracze
             emit('lista_graczy_w_pokoju', {'gracze': gracze_w_pokoju, 'Wlasciciel': pokoj.wlasciciel})
@@ -176,11 +194,12 @@ class Pokoj:
     @staticmethod
     @socketio.on('ustaw_haslo')
     def ustaw_haslo(data):
+        id = data.get('id')
         nazwa_pokoju = data.get('nazwa')
         haslo = data.get('haslo')
         gracz = data.get('gracz')
 
-        pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+        pokoj = next((p for p in pokoje if p.id == id), None)
         if pokoj and pokoj.czy_wlasciciel(gracz):
             pokoj.ustaw_haslo(haslo)
             emit('ustawienie_hasla', {'success': f'Hasło do pokoju {nazwa_pokoju} zostało ustawione'})
@@ -188,10 +207,11 @@ class Pokoj:
     @staticmethod
     @socketio.on('opusc_pokoj')
     def opusc_pokoj(data):
+        id_pokoju = data.get('id')
         nazwa_pokoju = data.get('nazwa')
         gracz = data.get('gracz')
-
-        pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+        leave_room(id_pokoju)
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         if pokoj:
             if len(pokoj.gracze) > 1:
                 nowy_wlasciciel = [g for g in pokoj.gracze if g != gracz]
@@ -211,9 +231,10 @@ class Pokoj:
    
 
 class Gra:
-    def __init__(self, gracze, talia):
+    def __init__(self, id, gracze):
+        self.id = id 
         self.gracze = gracze
-        self.talia = talia
+        self.talia = Talia
         self.stol = []
         self.aktualny_gracz = None
         self.aktualna_stawka = 0
@@ -408,6 +429,7 @@ class Menu:
     @staticmethod
     @socketio.on('stworz_pokoj')
     def stworz_pokoj(data):
+        id = time.time()
         nazwa_pokoju = data.get('nazwa')
         haslo = data.get('haslo')
         wlasciciel = data.get('wlasciciel')
@@ -417,18 +439,20 @@ class Menu:
         elif any(p.nazwa == nazwa_pokoju for p in pokoje):
             emit('stworz_pokoj', {"error": "Pokój o tej nazwie już istnieje"})
         else:
-            pokoj = Pokoj(nazwa_pokoju, wlasciciel, haslo)
+            pokoj = Pokoj(id, nazwa_pokoju, wlasciciel, haslo)
             pokoje.append(pokoj)
-            emit('stworz_pokoj', {"success": "Pokój został utworzony pomyślnie"})
+            emit('stworz_pokoj', {"success": "Pokój został utworzony pomyślnie", "ID:": id})
 
     @staticmethod
     @socketio.on('dolacz_do_pokoju')
     def dolacz_do_pokoju(data):
+        id_pokoju = data.get('id')
         nazwa_pokoju = data.get('nazwa')
         haslo = data.get('haslo')
         gracz = data.get('gracz')
+        join_room(id_pokoju)
 
-        pokoj = next((p for p in pokoje if p.nazwa == nazwa_pokoju), None)
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         if not pokoj:
             emit('dolacz_do_pokoju', {'error': 'Pokój o podanej nazwie nie istnieje'})
         elif pokoj.haslo and pokoj.haslo != haslo:
@@ -441,7 +465,7 @@ class Menu:
     @socketio.on('wyswietl_pokoje')
     def wyswietl_pokoje():
         if pokoje:
-            lista_pokoi = [{'nazwa': p.nazwa, 'wlasciciel': p.wlasciciel, 'liczba_graczy': len(p.gracze)} for p in pokoje]
+            lista_pokoi = [{'ID': p.id, 'nazwa': p.nazwa, 'wlasciciel': p.wlasciciel, 'liczba_graczy': len(p.gracze)} for p in pokoje]
             emit('lista_pokoi', {'pokoje': lista_pokoi})
         else:
             emit('lista_pokoi', {'komunikat': 'Obecnie nie ma żadnych dostępnych pokojów.'})
