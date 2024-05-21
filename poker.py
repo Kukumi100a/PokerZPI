@@ -181,7 +181,7 @@ class Pokoj:
         pokoj = next((p for p in pokoje if p.id == id), None)
         if pokoj:
             gracze_w_pokoju = pokoj.gracze
-            emit('lista_graczy_w_pokoju', {'gracze': gracze_w_pokoju, 'Wlasciciel': pokoj.wlasciciel})
+            emit('lista_graczy_w_pokoju', {'gracze': gracze_w_pokoju, 'Wlasciciel': pokoj.wlasciciel, 'id': pokoj.id, 'nazwa': pokoj.nazwa})
         else:
             emit('lista_graczy_w_pokoju', {'error': 'Pokój o podanej nazwie nie istnieje'})
 
