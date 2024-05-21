@@ -225,7 +225,7 @@ class Pokoj:
 class Gra:
     def __init__(self, id, gracze):
         self.id = id 
-        self.gracze = [gracze[name] for name in gracze]
+        self.gracze = gracze
         self.talia = Talia()
         self.stol = []
         self.aktualny_gracz = None
@@ -274,7 +274,59 @@ class Gra:
         elif ruch == "va_banque":
             self.aktualny_gracz.va_banque()
             self.aktualna_stawka += self.aktualny_gracz.stawka
-                
+
+    @staticmethod
+    @socketio.on('dobierz')
+    def handle_dobierz(data):
+        id_pokoju = data.get('id')
+        karty_do_wymiany = data.get('karty_do_wymiany')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.gra.wykonaj_ruch('dobierz', karty_do_wymiany=karty_do_wymiany)
+        emit('aktualizacja', {'message': 'Gracz dobrał karty'})
+
+    @staticmethod
+    @socketio.on('postawienie')
+    def handle_postawienie(data):
+        id_pokoju = data.get('id')
+        stawka = data.get('stawka')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
+        emit('aktualizacja', {'message': 'Gracz postawił stawkę', 'stawka': stawka})
+
+    @staticmethod
+    @socketio.on('sprawdzenie')
+    def handle_sprawdzenie(data):
+        id_pokoju = data.get('id')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.gra.wykonaj_ruch('sprawdzenie')
+        emit('aktualizacja', {'message': 'Gracz sprawdził'})
+
+    @staticmethod
+    @socketio.on('pas')
+    def handle_pas(data):
+        id_pokoju = data.get('id')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.gra.wykonaj_ruch('pas')
+        emit('aktualizacja', {'message': 'Gracz spasował'})
+
+    @staticmethod
+    @socketio.on('podbicie')
+    def handle_podbicie(data):
+        id_pokoju = data.get('id')
+        stawka = data.get('stawka')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
+        emit('aktualizacja', {'message': 'Gracz podbił stawkę', 'stawka': stawka})
+
+    @staticmethod
+    @socketio.on('va_banque')
+    def handle_va_banque(data):
+        id_pokoju = data.get('id')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.gra.wykonaj_ruch('va_banque')
+        emit('aktualizacja', {'message': 'Gracz zagrał va banque'})
+
+
     def kolejny_gracz(self):
         # Znalezienie indeksu aktualnego gracza
         idx = self.gracze.index(self.aktualny_gracz)
@@ -297,6 +349,7 @@ class Gra:
             self.stol.extend(self.talia.rozdaj_karte(1))
     
     @staticmethod
+    @socketio.on('rezultat')
     def determine_winner(hands):
         winners = []
         best_hand_rank = None

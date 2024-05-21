@@ -190,10 +190,6 @@ def test_dolacz_do_pokoju(sio_client):
     # Uruchom obsługę zdarzeń
     eventlet.sleep(1)
 
-    # Zmienna do przechowywania ID pokoju
-
-    eventlet.sleep(1)
-
     print("Zmienna id_pokoju po zdarzeniu:", id_pokoju)  # Dodajemy linię debugowania
 
     assert id_pokoju is not None, "Nie udało się utworzyć pokoju i uzyskać jego ID."
@@ -311,8 +307,7 @@ def test_init():
 # Test rozpoczęcia gry
 def test_start_game():
     gracze = create_sample_players()
-    talia = create_sample_deck()
-    gra = Gra(gracze, talia)
+    gra = Gra(id, gracze)
     gra.start_game()
     assert len(gra.gracze[0].reka) == 5  # Sprawdź, czy pierwszy gracz ma 5 kart na ręce
     assert gra.aktualny_gracz == gracze[0]  # Sprawdź, czy pierwszy gracz jest aktualnym graczem
@@ -321,7 +316,6 @@ def test_start_game():
 # Test wykonania ruchu przez gracza
 def test_make_move():
     gracze = create_sample_players()
-    talia = create_sample_deck()
     gra = Gra(id, gracze)
     gra.start_game()
 
@@ -399,32 +393,61 @@ def test_start_game():
     sio.disconnect()
 
 # Test dla funkcji wynik
-def test_wynik():
-    # Tworzenie klienta Socket.IO i łączenie się z serwerem
-    sio = socketio.Client()
-    sio.connect('http://localhost:5000')
+def test_wynik(sio_client):
+    sio_client.connect('http://localhost:5000')
+    # Ustawienie zmiennych testowych
+    # Zdefiniowanie nazwy pokoju, hasła i właściciela
+    nazwa_pokoju = "testowy_pokoj"
+    haslo = "testowe_haslo"
+    wlasciciel = "testowy_gracz"
+    gracz2 = "gracz2"
 
-    # Rejestruj handler na serwerze
-    @sio.on('wynik')
+    # Tworzenie pokoju przez właściciela
+    sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
+
+    # Obsługa komunikatu o sukcesie
+    id_pokoju = None
+    def komunikat_sukcesu(data):
+        assert data["success"] == "Pokój został utworzony pomyślnie"
+        nonlocal id_pokoju 
+        id_pokoju = data["ID"]
+
+    # Połącz klienta WebSocket z serwerem
+    sio_client.on('stworz_pokoj', komunikat_sukcesu)
+
+    # Uruchom obsługę zdarzeń
+    eventlet.sleep(1)
+
+
+    assert id_pokoju is not None, "Nie udało się utworzyć pokoju i uzyskać jego ID."
+
+    # Dołączanie graczy do pokoju
+    
+    sio_client.emit('dolacz_do_pokoju', {'id': id_pokoju, 'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': gracz2})
+    eventlet.sleep(1)
+
+    # Symulacja ruchów
+    sio_client.emit('wykonaj_ruch', {'id': id_pokoju, 'ruch': 'postawienie', 'stawka': 10, 'gracz': wlasciciel})
+    eventlet.sleep(1)
+    sio_client.emit('wykonaj_ruch', {'id': id_pokoju, 'ruch': 'sprawdzenie', 'gracz': gracz2})
+    eventlet.sleep(1)
+
+    # Obsługa komunikatu o wyniku
+    rezultat = None
     def on_result(data):
-        assert data == {'zwyciezcą jest:': 'gracz1', 'z układem:': 'High Card'}
+        nonlocal rezultat 
+        assert 'zwyciezcą jest:' in data or 'remis' in data
+        rezultat = data['Wynik gry:']
 
-    # Symulacja gry
-    gracze = create_sample_players()
-    gra = Gra(id, gracze)
-    gra.start_game()
-    gra.wykonaj_ruch('postawienie', stawka=10)
-    gra.wykonaj_ruch('sprawdzenie')
-    gra.zakoncz_runde()
+    sio_client.on('wynik', on_result)
+    print("Wynik gry:", rezultat)
+    eventlet.sleep(1)
 
-    # Wywołaj metodę sprawdz_koniec_gry na serwerze
-    gra.sprawdz_koniec_gry()
+    # Wywołanie metody sprawdz_koniec_gry
+    sio_client.emit('rezultat', {'id': id_pokoju})
+    eventlet.sleep(1)
 
-    # Zaczekaj na otrzymanie danych od serwera
-    sio.emit('wynik')
-
-    # Zatrzymaj pętlę zdarzeń
-    sio.sleep(0.1)
-
-    # Rozłącz się z serwerem
-    sio.disconnect()
+    # Wyzwalanie wyniku
+    sio_client.emit('wynik', {'id': id_pokoju})
+    eventlet.sleep(1)
+    sio_client.disconnect()
