@@ -411,9 +411,18 @@ def test_wynik(sio_client):
     eventlet.sleep(1)
 
     # Symulacja ruchów
-    sio_client.emit('wykonaj_ruch', {'id': id_pokoju, 'ruch': 'postawienie', 'stawka': 10, 'gracz': "wlasciciel"})
+    def testpostaw(data):
+        assert data['message'] == "Gracz postawił stawkę"
+
+    sio_client.emit('postawienie', {'id': id_pokoju, 'ruch': 'postawienie', 'stawka': 10, 'gracz': "wlasciciel"})
+    sio_client.on('start_game_result', testpostaw)
+
     eventlet.sleep(1)
-    sio_client.emit('wykonaj_ruch', {'id': id_pokoju, 'ruch': 'sprawdzenie', 'gracz': gracz2})
+    def sprawdz(data):
+        assert data['message'] == "Gracz sprawdził"
+    sio_client.emit('sprawdzenie', {'id': id_pokoju, 'ruch': 'sprawdzenie', 'gracz': gracz2})
+    sio_client.on('start_game_result', sprawdz)
+
     eventlet.sleep(1)
 
     # Obsługa komunikatu o wyniku
