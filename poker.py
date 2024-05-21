@@ -249,6 +249,7 @@ class Gra:
         if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze):
             # Jeśli tak, zakończ rundę
             self.zakoncz_runde()
+            self.runda=+1
             # Sprawdzenie czy gra powinna się zakończyć
             self.sprawdz_koniec_gry()
         else:
