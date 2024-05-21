@@ -2,6 +2,8 @@ import pytest
 import socketio
 import eventlet
 from poker import Gracz, Karta, Pokoj, pokoje, Talia, Gra
+
+id_pokoju = None
 @pytest.fixture
 def sio_client():
     sio_client = socketio.Client()
@@ -149,21 +151,6 @@ def test_wynik_draw(sio_client):
     # Przekazujemy dane o remisie jako argument
     wynik({"remis": ["gracz1", "gracz2", "gracz3"]})
 
-def test_wyswietl_pokoje(sio_client):
-    sio_client.connect('http://localhost:5000')
-
-    def komunikat_pokoje(data):
-        assert 'pokoje' in data
-        pokoje = data['pokoje']
-        assert isinstance(pokoje, list)
-        assert len(pokoje) == 0  
-
-    sio_client.emit('wyswietl_pokoje')
-
-    sio_client.on('lista_pokoi', komunikat_pokoje)
-
-    eventlet.sleep(1)
-    
 def test_dolacz_do_pokoju(sio_client):
 
     # Zdefiniowanie nazwy pokoju, hasła i właściciela
@@ -178,10 +165,9 @@ def test_dolacz_do_pokoju(sio_client):
     sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
 
     # Obsługa komunikatu o sukcesie
-    id_pokoju = None
     def komunikat_sukcesu(data):
         assert data["success"] == "Pokój został utworzony pomyślnie"
-        nonlocal id_pokoju 
+        global id_pokoju 
         id_pokoju = data["ID"]
 
     # Połącz klienta WebSocket z serwerem
@@ -194,6 +180,21 @@ def test_dolacz_do_pokoju(sio_client):
 
     assert id_pokoju is not None, "Nie udało się utworzyć pokoju i uzyskać jego ID."
 
+def test_wyswietl_pokoje(sio_client):
+    sio_client.connect('http://localhost:5000')
+
+    def komunikat_pokoje(data):
+        assert 'pokoje' in data
+        pokoje = data['pokoje']
+        assert isinstance(pokoje, list)
+        assert len(pokoje) == 1  
+
+    sio_client.emit('wyswietl_pokoje')
+
+    sio_client.on('lista_pokoi', komunikat_pokoje)
+
+    eventlet.sleep(1)
+    
 def test_opusc_pokoj(sio_client):
     sio_client.connect('http://localhost:5000')
 
@@ -396,24 +397,7 @@ def test_start_game():
 def test_wynik(sio_client):
     sio_client.connect('http://localhost:5000')
     # Ustawienie zmiennych testowych
-    # Zdefiniowanie nazwy pokoju, hasła i właściciela
-    nazwa_pokoju = "testowy_pokoj"
-    haslo = "testowe_haslo"
-    wlasciciel = "testowy_gracz"
     gracz2 = "gracz2"
-
-    # Tworzenie pokoju przez właściciela
-    sio_client.emit('stworz_pokoj', {'nazwa': nazwa_pokoju, 'haslo': haslo, 'wlasciciel': wlasciciel})
-
-    # Obsługa komunikatu o sukcesie
-    id_pokoju = None
-    def komunikat_sukcesu(data):
-        assert data["success"] == "Pokój został utworzony pomyślnie"
-        nonlocal id_pokoju 
-        id_pokoju = data["ID"]
-
-    # Połącz klienta WebSocket z serwerem
-    sio_client.on('stworz_pokoj', komunikat_sukcesu)
 
     # Uruchom obsługę zdarzeń
     eventlet.sleep(1)
@@ -423,11 +407,11 @@ def test_wynik(sio_client):
 
     # Dołączanie graczy do pokoju
     
-    sio_client.emit('dolacz_do_pokoju', {'id': id_pokoju, 'nazwa': nazwa_pokoju, 'haslo': haslo, 'gracz': gracz2})
+    sio_client.emit('dolacz_do_pokoju', {'id': id_pokoju, 'nazwa': "testowy_pokoj", 'haslo': "testowe_haslo", 'gracz': gracz2})
     eventlet.sleep(1)
 
     # Symulacja ruchów
-    sio_client.emit('wykonaj_ruch', {'id': id_pokoju, 'ruch': 'postawienie', 'stawka': 10, 'gracz': wlasciciel})
+    sio_client.emit('wykonaj_ruch', {'id': id_pokoju, 'ruch': 'postawienie', 'stawka': 10, 'gracz': "wlasciciel"})
     eventlet.sleep(1)
     sio_client.emit('wykonaj_ruch', {'id': id_pokoju, 'ruch': 'sprawdzenie', 'gracz': gracz2})
     eventlet.sleep(1)
