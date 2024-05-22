@@ -297,6 +297,9 @@ class Gra:
         
         gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
         emit('aktualizacja', {'message': 'Karty', 'reka': gracz.reka})
+        
+        # FIXME: Może wywalić testy
+        emit('aktualizacja', {'message': 'Gracz dobrał karty', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
         # emit('aktualizacja', {'message': 'Gracz dobrał karty'})
 
 
