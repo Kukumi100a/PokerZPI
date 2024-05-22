@@ -226,13 +226,12 @@ class Pokoj:
                 else:
                     pokoj.usun_gracza(gracz)
                     pokoje.remove(pokoj)
-                    emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
-                    emit('dolacz_do_pokoju', {'success': f'Opuszczono pokój {pokoj.nazwa}'}, room=id_pokoju)
+                    emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'}, room=id_pokoju)
             else:
                 pokoj.usun_gracza(gracz)
                 pokoje.remove(pokoj)
-                emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
-                emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {pokoj.nazwa}'}, room=id_pokoju)
+                emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'}, room=id_pokoju)
+
    
 
 class Gra:
