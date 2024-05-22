@@ -551,10 +551,10 @@ class Menu:
 
         pokoj = next((p for p in pokoje if len(p.gracze) < 4), None)
 
-        join_room(pokoj.id)
         if pokoj is None:
             emit('znaleziono_wolny_pokoj', {'error': f'Nie udało się znaleźć pokoju', 'id': None})
         else:
+            join_room(pokoj.id)
             pokoj.dodaj_gracza(gracz)
             emit('znaleziono_wolny_pokoj', {'success': f'Znaleziono wolny pokój {pokoj.nazwa}', 'id': pokoj.id})
 
