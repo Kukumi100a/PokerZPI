@@ -573,9 +573,6 @@ class Menu:
         if pokoj is None:
             emit('znaleziono_wolny_pokoj', {'error': f'Nie udało się znaleźć pokoju', 'id': None})
         else:
-            join_room(pokoj.id)
-            pokoj.dodaj_gracza(gracz)
-            emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {pokoj.nazwa}'}, room=id_pokoju)
             emit('znaleziono_wolny_pokoj', {'success': f'Znaleziono wolny pokój {pokoj.nazwa}', 'id': pokoj.id})
 
     @staticmethod
