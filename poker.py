@@ -234,6 +234,8 @@ class Gra:
         self.talia = Talia()
         self.stol = []
         self.aktualny_gracz = None
+        self.aktualny_gracz_bilans = 0
+        self.poczatkowy_bilans = 100
         self.aktualna_stawka = 0
         self.runda = 0
         self.koniec_gry = False  
@@ -244,6 +246,7 @@ class Gra:
         self.talia.tasuj()
         for gracz in self.gracze:
             gracz.reka = self.talia.rozdaj_karte(5)
+            gracz.zetony = self.poczatkowy_bilans
         # Ustawienie pierwszego gracza jako aktualnego gracza
         self.aktualny_gracz = self.gracze[0]
         self.runda = 1
@@ -266,29 +269,36 @@ class Gra:
         if ruch == "czekanie":
             if self.aktualna_stawka > 0:
                 self.aktualny_gracz.czeka()
+            self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
             self.kolejna_runda()
         elif ruch == "dobierz":
             self.aktualny_gracz.dobierz_karte(karty_do_wymiany, self.talia)
+            self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
             self.kolejna_runda()
         elif ruch == "postawienie":
             self.aktualny_gracz.postawienie(stawka)
             self.aktualna_stawka += stawka
+            self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
             self.kolejna_runda()
         elif ruch == "sprawdzenie":
             roznica = self.aktualna_stawka - self.aktualny_gracz.stawka
             self.aktualny_gracz.sprawdzenie(roznica)
+            self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
             self.kolejna_runda()
         elif ruch == "pas":
             self.aktualny_gracz.pas()
-            self.aktualna_stawka = 0
+            self.aktualny_gracz.stawka = 0
+            self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
             self.kolejna_runda()
         elif ruch == "podbicie":
-            self.aktualna_stawka += stawka  # Aktualizacja aktualnej stawki
-            self.aktualny_gracz.podbicie(stawka)  # Modify here
+            self.aktualna_stawka += stawka  
+            self.aktualny_gracz.podbicie(stawka)  
+            self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
             self.kolejna_runda()
         elif ruch == "va_banque":
             self.aktualny_gracz.va_banque()
             self.aktualna_stawka += self.aktualny_gracz.stawka
+            self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
             self.kolejna_runda()
 
     @staticmethod
@@ -334,7 +344,8 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualny_gracz.stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        bilans_gracza = pokoj.gra.aktualny_gracz_bilans
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz postawił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('sprawdzenie')
@@ -343,7 +354,8 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('sprawdzenie')
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        bilans_gracza = pokoj.gra.aktualny_gracz_bilans
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('pas')
@@ -352,7 +364,8 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('pas')
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        bilans_gracza = pokoj.gra.aktualny_gracz_bilans
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('podbicie')
@@ -362,7 +375,8 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz podbił stawkę', 'stawka': pokoj.gra.aktualny_gracz.stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        bilans_gracza = pokoj.gra.aktualny_gracz_bilans
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza,  'message': 'Gracz podbił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('va_banque')
@@ -371,7 +385,8 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('va_banque')
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualny_gracz.stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        bilans_gracza = pokoj.gra.aktualny_gracz_bilans
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz zagrał va banque', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('czekanie')
@@ -380,7 +395,8 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('czekanie')
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        bilans_gracza = pokoj.gra.aktualny_gracz_bilans
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     def kolejny_gracz(self):
         # Obecny gracz na koniec
