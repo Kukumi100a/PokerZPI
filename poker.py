@@ -236,6 +236,7 @@ class Gra:
     def __init__(self, id, gracze):
         self.id = id 
         self.gracze = gracze
+        self.kolejka: list[Gracz] = gracze
         self.talia = Talia()
         self.stol = []
         self.aktualny_gracz = None
@@ -381,10 +382,11 @@ class Gra:
         emit('aktualizacja', {'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
 
     def kolejny_gracz(self):
-        # Znalezienie indeksu aktualnego gracza
-        idx = self.gracze.index(self.aktualny_gracz)
+        # Obecny gracz na koniec
+        temp = self.kolejka.pop(0)
+        self.kolejka.append(temp)
         # Ustawienie następnego gracza jako aktualny
-        self.aktualny_gracz = self.gracze[(idx + 1) % len(self.gracze)]
+        self.aktualny_gracz = self.kolejka[0]
         # Jeśli aktualny gracz spasował, przejdź do kolejnego gracza
         if self.aktualny_gracz.stawka == 0:
             self.kolejny_gracz()
