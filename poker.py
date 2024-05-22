@@ -303,7 +303,8 @@ class Gra:
         for karta in gracz.reka:
             karty.append({'kolor': karta.kolory, 'znak': karta.hierarchia})
 
-        emit('aktualizacja', {'message': 'Start gry', 'reka': karty, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
+        gracze = [g.name for g in pokoj.gra.gracze]
+        emit('aktualizacja', {'message': 'Start gry', 'reka': karty, 'gracze': gracze, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
 
     @staticmethod
     @socketio.on('dobierz')
