@@ -559,7 +559,7 @@ class Menu:
             emit('dolacz_do_pokoju', {'error': 'Nieprawidłowe hasło do pokoju'})
         else:
             pokoj.dodaj_gracza(gracz)
-            emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {pokoj.nazwa}'})
+            emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {pokoj.nazwa}'}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('szybka_gra')
