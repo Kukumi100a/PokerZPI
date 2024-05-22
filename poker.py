@@ -288,7 +288,11 @@ class Gra:
         gracz = data.get('gracz')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
-        emit('aktualizacja', {'message': 'Start gry', 'reka': gracz.reka })
+
+        karty = [ karta.to_json() for karta in gracz.reka ]
+        karty_str = "[ %s ]" % (", ".join(karty))
+
+        emit('aktualizacja', {'message': 'Start gry', 'reka': karty_str })
 
     @staticmethod
     @socketio.on('dobierz')
