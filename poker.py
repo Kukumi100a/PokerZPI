@@ -325,7 +325,7 @@ class Gra:
     @socketio.on('postawienie')
     def handle_postawienie(data):
         id_pokoju = data.get('id')
-        stawka = data.get('stawka')
+        stawka = int(data.get('stawka'))
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
         emit('aktualizacja', {'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
