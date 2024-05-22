@@ -545,6 +545,17 @@ class Menu:
             emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {pokoj.nazwa}'})
 
     @staticmethod
+    @socketio.on('szybka_gra')
+    def szybka_gra(data):
+        gracz = data.get('gracz')
+
+        pokoj = next((p for p in pokoje if len(p.gracze) < 4), None)
+
+        join_room(pokoj.id)
+        pokoj.dodaj_gracza(gracz)
+        emit('znaleziono_wolny_pokoj', {'success': f'Znaleziono wolny pokój {pokoj.nazwa}', 'id': pokoj.id})
+
+    @staticmethod
     @socketio.on('wyswietl_pokoje')
     def wyswietl_pokoje():
         if pokoje:
