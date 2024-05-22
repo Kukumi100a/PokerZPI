@@ -215,6 +215,7 @@ class Pokoj:
         gracz = data.get('gracz')
         leave_room(id_pokoju)
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.usun_gracza(gracz)
         if pokoj:
             if len(pokoj.gracze) > 1:
                 nowy_wlasciciel = [g for g in pokoj.gracze if g != gracz]
@@ -222,13 +223,10 @@ class Pokoj:
                     nowy_wlasciciel = nowy_wlasciciel[0]
                     pokoj.wlasciciel = nowy_wlasciciel
                     emit('ustawienie_nazwy_wlasciciela', {'nazwa': nazwa_pokoju, 'wlasciciel': nowy_wlasciciel})
-                    pokoj.usun_gracza(gracz)
                 else:
-                    pokoj.usun_gracza(gracz)
                     pokoje.remove(pokoj)
                     emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'}, room=id_pokoju)
             else:
-                pokoj.usun_gracza(gracz)
                 pokoje.remove(pokoj)
                 emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'}, room=id_pokoju)
 
