@@ -349,7 +349,7 @@ class Gra:
     @staticmethod
     @socketio.on('podbicie')
     def handle_podbicie(data):
-        stawka = data.get('stawka')
+        stawka = int(data.get('stawka'))
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
