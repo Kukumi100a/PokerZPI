@@ -333,7 +333,7 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualny_gracz.stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('sprawdzenie')
@@ -342,7 +342,7 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('sprawdzenie')
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('pas')
@@ -351,7 +351,7 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('pas')
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('podbicie')
@@ -361,7 +361,7 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz podbił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz podbił stawkę', 'stawka': pokoj.gra.aktualny_gracz.stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('va_banque')
@@ -370,7 +370,7 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('va_banque')
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualny_gracz.stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('czekanie')
@@ -379,7 +379,7 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('czekanie')
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
 
     def kolejny_gracz(self):
         # Obecny gracz na koniec
