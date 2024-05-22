@@ -288,7 +288,7 @@ class Gra:
         gracz = data.get('gracz')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
-        emit('aktualizacja', {'message': 'Start gry', 'reka': gracz.reka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
+        emit('aktualizacja', {'message': 'Start gry', 'reka': gracz.reka })
 
     @staticmethod
     @socketio.on('dobierz')
@@ -303,7 +303,7 @@ class Gra:
         emit('aktualizacja', {'message': 'Karty', 'reka': gracz.reka})
         
         # FIXME: Może wywalić testy
-        emit('aktualizacja', {'message': 'Gracz dobrał karty', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'message': 'Gracz dobrał karty' }, room=id_pokoju)
         # emit('aktualizacja', {'message': 'Gracz dobrał karty'})
 
 
@@ -314,7 +314,7 @@ class Gra:
         stawka = data.get('stawka')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
-        emit('aktualizacja', {'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualna_stawka }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('sprawdzenie')
@@ -322,7 +322,7 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('sprawdzenie')
-        emit('aktualizacja', {'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
+        emit('aktualizacja', {'message': 'Gracz sprawdził' })
 
     @staticmethod
     @socketio.on('pas')
@@ -330,7 +330,7 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('pas')
-        emit('aktualizacja', {'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
+        emit('aktualizacja', {'message': 'Gracz spasował' })
 
     @staticmethod
     @socketio.on('podbicie')
@@ -339,7 +339,7 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
-        emit('aktualizacja', {'message': 'Gracz podbił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'message': 'Gracz podbił stawkę', 'stawka': pokoj.gra.aktualna_stawka }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('va_banque')
@@ -347,7 +347,7 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.gra.wykonaj_ruch('va_banque')
-        emit('aktualizacja', {'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka }, room=id_pokoju)
 
 
     def kolejny_gracz(self):
