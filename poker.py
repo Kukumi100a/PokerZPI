@@ -272,7 +272,7 @@ class Gra:
         if ruch == "czekanie":
             if self.aktualna_stawka > 0:
                 self.aktualny_gracz.czeka()
-                self.kolejna_runda()
+            self.kolejna_runda()
         elif ruch == "dobierz":
             self.aktualny_gracz.dobierz_karte(karty_do_wymiany, self.talia)
             self.kolejna_runda()
@@ -346,7 +346,7 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('sprawdzenie')
-        emit('aktualizacja', {'message': 'Gracz sprawdził' })
+        emit('aktualizacja', {'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('pas')
@@ -354,7 +354,7 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('pas')
-        emit('aktualizacja', {'message': 'Gracz spasował' })
+        emit('aktualizacja', {'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('podbicie')
@@ -371,8 +371,15 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('va_banque')
-        emit('aktualizacja', {'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka }, room=id_pokoju)
+        emit('aktualizacja', {'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
 
+    @staticmethod
+    @socketio.on('czekanie')
+    def handle_czekanie(data):
+        id_pokoju = data.get('id')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.gra.wykonaj_ruch('czekanie')
+        emit('aktualizacja', {'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
 
     def kolejny_gracz(self):
         # Znalezienie indeksu aktualnego gracza
