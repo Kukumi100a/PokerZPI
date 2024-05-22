@@ -227,10 +227,12 @@ class Pokoj:
                     pokoj.usun_gracza(gracz)
                     pokoje.remove(pokoj)
                     emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
+                    emit('dolacz_do_pokoju', {'success': f'Opuszczono pokój {pokoj.nazwa}'}, room=id_pokoju)
             else:
                 pokoj.usun_gracza(gracz)
                 pokoje.remove(pokoj)
                 emit('opuszczanie_pokoju', {'success': f'Opuszczono pokój {nazwa_pokoju}'})
+                emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {pokoj.nazwa}'}, room=id_pokoju)
    
 
 class Gra:
@@ -573,6 +575,7 @@ class Menu:
         else:
             join_room(pokoj.id)
             pokoj.dodaj_gracza(gracz)
+            emit('dolacz_do_pokoju', {'success': f'Dołączono do pokoju {pokoj.nazwa}'}, room=id_pokoju)
             emit('znaleziono_wolny_pokoj', {'success': f'Znaleziono wolny pokój {pokoj.nazwa}', 'id': pokoj.id})
 
     @staticmethod
