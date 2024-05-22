@@ -360,7 +360,7 @@ class Gra:
     def handle_va_banque(data):
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
-        pokoj.gra.gra.wykonaj_ruch('va_banque')
+        pokoj.gra.wykonaj_ruch('va_banque')
         emit('aktualizacja', {'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka }, room=id_pokoju)
 
 
