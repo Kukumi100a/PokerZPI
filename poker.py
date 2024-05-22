@@ -3,6 +3,7 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from collections import Counter
 import time 
+from json import dumps
 
 
 app = Flask(__name__)
@@ -18,6 +19,9 @@ class Karta:
 
     def __str__(self):
         return f"{self.hierarchia} of {self.kolory}"
+    
+    def to_json(self):
+        return dumps(self.__dict__)
 
 class Talia:
     def __init__(self):
