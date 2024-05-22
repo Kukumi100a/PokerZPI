@@ -314,7 +314,10 @@ class Gra:
         gra.wykonaj_ruch('dobierz', karty_do_wymiany=karty_do_wymiany)
         
         gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
-        emit('aktualizacja', {'message': 'Karty', 'reka': gracz.reka})
+        karty = []
+        for karta in gracz.reka:
+            karty.append({'kolor': karta.kolory, 'znak': karta.hierarchia})
+        emit('aktualizacja', {'message': 'Karty', 'reka': karty})
         
         # FIXME: Może wywalić testy
         emit('aktualizacja', {'message': 'Gracz dobrał karty', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
