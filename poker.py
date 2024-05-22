@@ -129,7 +129,6 @@ class Pokoj:
             return "Tylko właściciel pokoju może zmieniać ustawienia."
         if nowa_nazwa_pokoju:
             pokoj.nazwa = nowa_nazwa_pokoju
-            emit('start_game', {'success': f'Gra w pokoju {pokoj.nazwa} rozpoczęła się'}, room=pokoj.id)   
         if nowe_haslo:
             pokoj.haslo = nowe_haslo
 
@@ -332,24 +331,27 @@ class Gra:
         id_pokoju = data.get('id')
         stawka = int(data.get('stawka'))
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
-        emit('aktualizacja', {'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz postawił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('sprawdzenie')
     def handle_sprawdzenie(data):
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('sprawdzenie')
-        emit('aktualizacja', {'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('pas')
     def handle_pas(data):
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('pas')
-        emit('aktualizacja', {'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('podbicie')
@@ -357,24 +359,27 @@ class Gra:
         stawka = int(data.get('stawka'))
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
-        emit('aktualizacja', {'message': 'Gracz podbił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz podbił stawkę', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('va_banque')
     def handle_va_banque(data):
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('va_banque')
-        emit('aktualizacja', {'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('czekanie')
     def handle_czekanie(data):
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('czekanie')
-        emit('aktualizacja', {'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name}, room=id_pokoju)
 
     def kolejny_gracz(self):
         # Obecny gracz na koniec
@@ -382,9 +387,6 @@ class Gra:
         self.kolejka.append(temp)
         # Ustawienie następnego gracza jako aktualny
         self.aktualny_gracz = self.kolejka[0]
-        # Jeśli aktualny gracz spasował, przejdź do kolejnego gracza
-        if self.aktualny_gracz.stawka == 0:
-            self.kolejny_gracz()
 
 
     def rozdaj_karty(self):
