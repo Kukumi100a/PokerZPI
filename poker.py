@@ -272,23 +272,30 @@ class Gra:
         if ruch == "czekanie":
             if self.aktualna_stawka > 0:
                 self.aktualny_gracz.czeka()
+                self.kolejna_runda()
         elif ruch == "dobierz":
             self.aktualny_gracz.dobierz_karte(karty_do_wymiany, self.talia)
+            self.kolejna_runda()
         elif ruch == "postawienie":
             self.aktualny_gracz.postawienie(stawka)
             self.aktualna_stawka += stawka
+            self.kolejna_runda()
         elif ruch == "sprawdzenie":
             roznica = self.aktualna_stawka - self.aktualny_gracz.stawka
             self.aktualny_gracz.sprawdzenie(roznica)
+            self.kolejna_runda()
         elif ruch == "pas":
             self.aktualny_gracz.pas()
             self.aktualna_stawka = 0
+            self.kolejna_runda()
         elif ruch == "podbicie":
             self.aktualna_stawka += stawka  # Aktualizacja aktualnej stawki
             self.aktualny_gracz.podbicie(stawka)  # Modify here
+            self.kolejna_runda()
         elif ruch == "va_banque":
             self.aktualny_gracz.va_banque()
             self.aktualna_stawka += self.aktualny_gracz.stawka
+            self.kolejna_runda()
 
     @staticmethod
     @socketio.on('start_gry')
