@@ -95,6 +95,12 @@ class Gracz:
     def va_banque(self):
         self.stawka += self.zetony
         self.zetony = 0
+    
+    def czeka(self):
+        if self.stawka < self.gra.aktualna_stawka:
+            raise ValueError("Nie można czekać, gdy stawka została przebita")
+        self.stawka = self.gra.aktualna_stawka
+    
 
 gracze = {
     "gracz1": Gracz("gracz1", 100),
@@ -263,7 +269,10 @@ class Gra:
             self.sprawdz_koniec_gry()
 
     def wykonaj_ruch(self, ruch, stawka=0, karty_do_wymiany=None):
-        if ruch == "dobierz":
+        if ruch == "czekanie":
+            if self.aktualna_stawka > 0:
+                self.aktualny_gracz.czeka()
+        elif ruch == "dobierz":
             self.aktualny_gracz.dobierz_karte(karty_do_wymiany, self.talia)
         elif ruch == "postawienie":
             self.aktualny_gracz.postawienie(stawka)
@@ -353,6 +362,18 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.gra.wykonaj_ruch('va_banque')
         emit('aktualizacja', {'message': 'Gracz zagrał va banque', 'stawka': pokoj.gra.aktualna_stawka }, room=id_pokoju)
+    
+    @staticmethod
+    @socketio.on('czekanie')
+    def handle_czekanie(data):
+        id_pokoju = data.get('id')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        gra = pokoj.gra
+        if gra.aktualna_stawka > 0:
+            gra.aktualny_gracz.czeka()
+            emit('aktualizacja', {'message': 'Gracz czeka', 'gracz': gra.aktualny_gracz.name }, room=id_pokoju)
+        else:
+            emit('aktualizacja', {'error': 'Nie można czekać, gdy nikt jeszcze nie postawił stawki.'}, room=id_pokoju)
 
 
     def kolejny_gracz(self):
