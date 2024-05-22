@@ -102,12 +102,7 @@ class Gracz:
         self.stawka = self.gra.aktualna_stawka
     
 
-gracze = {
-    "gracz1": Gracz("gracz1", 100),
-    "gracz2": Gracz("gracz2", 100),
-    "gracz3": Gracz("gracz3", 100),
-    "gracz4": Gracz("gracz4", 100)
-}
+gracze = {}
 
 class Pokoj:
     def __init__(self, id, nazwa, wlasciciel, haslo=None):
@@ -173,7 +168,7 @@ class Pokoj:
                 print("Gra została rozpoczęta!")
                 # Przekazanie żądania rozpoczęcia gry do klasy Gra
                 ########## obiekt
-                nowi_gracze = [ Gracz(nick, 100) for nick in gracze_str ]
+                nowi_gracze = [ gracze[nick] for nick in gracze_str ]
                 pokoj.gra = Gra(id, nowi_gracze)
                 pokoj.gra.start_game()
                 emit('start_game', {'success': f'Gra w pokoju {pokoj.nazwa} rozpoczęła się'}, room=pokoj.id)
