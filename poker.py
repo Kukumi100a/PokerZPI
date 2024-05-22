@@ -322,7 +322,7 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('sprawdzenie')
-        emit('aktualizacja', {'message': 'Gracz sprawdził' })
+        emit('aktualizacja', {'message': 'Gracz sprawdził' }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('pas')
@@ -330,7 +330,7 @@ class Gra:
         id_pokoju = data.get('id')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.wykonaj_ruch('pas')
-        emit('aktualizacja', {'message': 'Gracz spasował' })
+        emit('aktualizacja', {'message': 'Gracz spasował' }, room=id_pokoju)
 
     @staticmethod
     @socketio.on('podbicie')
