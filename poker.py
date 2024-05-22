@@ -289,10 +289,11 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
 
-        karty = [ karta.to_json() for karta in gracz.reka ]
-        karty_str = "[ %s ]" % (", ".join(karty))
+        karty = []
+        for karta in gracz.reka:
+            karty.append({'kolor': karta.kolory, 'znak': karta.hierarchia})
 
-        emit('aktualizacja', {'message': 'Start gry', 'reka': karty_str })
+        emit('aktualizacja', {'message': 'Start gry', 'reka': karty })
 
     @staticmethod
     @socketio.on('dobierz')
