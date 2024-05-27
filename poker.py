@@ -476,22 +476,22 @@ class Gra:
             
     def zakoncz_runde(self):
         hands = [gracz.reka + self.stol for gracz in self.gracze]
-        zwyciezca, best_hand_rank = self.determine_winner(hands)
-        winning_hand = hands[zwyciezca[0]]  # Pobranie układu zwycięzcy
+        winners, best_hand_rank = self.determine_winner(hands)
+        winning_hand = hands[winners[0]]  # Pobranie układu zwycięzcy
 
-        if len(zwyciezca) == 1:
-            winning_player = self.gracze[zwyciezca[0]]
+        if len(winners) == 1:
+            winning_player = self.gracze[winners[0]]
             winning_player.zetony += self.aktualna_stawka
         else:
-            for idx in zwyciezca:
+            for idx in winners:
                 winning_player = self.gracze[idx]
-                winning_player.zetony += self.aktualna_stawka // len(zwyciezca)
+                winning_player.zetony += self.aktualna_stawka // len(winners)
         
         self.aktualna_stawka = 0
 
         emit('rezultat', {
             'message': 'Runda zakończona',
-            'zwyciezca': [self.gracze[idx].name for idx in zwyciezca],
+            'zwyciezca': [self.gracze[idx].name for idx in winners],
             'uklad_zwyciezcy': self.check_hand(winning_hand)
         }, room=self.id)
 
