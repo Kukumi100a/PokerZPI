@@ -238,7 +238,8 @@ class Gra:
         self.poczatkowy_bilans = 100
         self.aktualna_stawka = 0
         self.runda = 1
-        self.koniec_gry = False  
+        self.koniec_gry = False
+        self.hierarchia = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 
         
     def start_game(self):
@@ -432,7 +433,7 @@ class Gra:
             winning_player = None
             for winner_idx in winners:
                 hand = hands[winner_idx]
-                hand_ranks = [self.talia.karty.hierarchia.index(card.hierarchia) for card in hand]
+                hand_ranks = [self.hierarchia.index(card.hierarchia) for card in hand]
                 pair_rank = max(set(hand_ranks), key=hand_ranks.count)
                 print("pair_rank:", pair_rank)
                 print("best_pair_rank:", best_pair_rank)
@@ -515,9 +516,6 @@ class Gra:
             zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
             emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
 
-
-    def get_winning_hand(self, hands, zwyciezca):
-        return hands[zwyciezca[0]]
 
 
 
