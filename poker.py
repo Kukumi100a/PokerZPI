@@ -237,7 +237,7 @@ class Gra:
         self.aktualny_gracz_bilans = 0
         self.poczatkowy_bilans = 100
         self.aktualna_stawka = 0
-        self.runda = 0
+        self.runda = 1
         self.koniec_gry = False  
 
         
@@ -249,7 +249,6 @@ class Gra:
             gracz.zetony = self.poczatkowy_bilans
         # Ustawienie pierwszego gracza jako aktualnego gracza
         self.aktualny_gracz = self.gracze[0]
-        self.runda = 1
 
     def kolejna_runda(self):
         # Sprawdzenie czy wszyscy gracze wykonali ruch
@@ -262,9 +261,8 @@ class Gra:
         else:
             # W przeciwnym razie, przejdź do kolejnego gracza
             self.kolejny_gracz()
-            # Sprawdzenie czy gra powinna się zakończyć
-            self.sprawdz_koniec_gry()
 
+    
     def wykonaj_ruch(self, ruch, stawka=0, karty_do_wymiany=None):
         if ruch == "czekanie":
             if self.aktualna_stawka > 0:
@@ -417,13 +415,11 @@ class Gra:
             # Jeśli to czwarta runda, dodaj ostatnią kartę do stołu
             self.stol.extend(self.talia.rozdaj_karte(1))
     
-    @staticmethod
-    @socketio.on('rezultat')
-    def determine_winner(hands):
+    def determine_winner(self, hands):
         winners = []
         best_hand_rank = None
         for idx, hand in enumerate(hands):
-            hand_rank = Gra.check_hand(hand)
+            hand_rank = self.check_hand(hand)  # Wywołanie metody klasy Gra
             if best_hand_rank is None or hand_rank > best_hand_rank:
                 best_hand_rank = hand_rank
                 winners = [idx]
@@ -436,8 +432,10 @@ class Gra:
             winning_player = None
             for winner_idx in winners:
                 hand = hands[winner_idx]
-                hand_ranks = [hierarchia.index(card.hierarchia) for card in hand]
+                hand_ranks = [self.talia.karty.hierarchia.index(card.hierarchia) for card in hand]
                 pair_rank = max(set(hand_ranks), key=hand_ranks.count)
+                print("pair_rank:", pair_rank)
+                print("best_pair_rank:", best_pair_rank)
                 if pair_rank > best_pair_rank:
                     best_pair_rank = pair_rank
                     best_card_rank = max(hand_ranks)
@@ -451,8 +449,7 @@ class Gra:
 
         return winners, best_hand_rank
 
-    @staticmethod
-    def check_hand(hand):
+    def check_hand(self, hand):
         counts = Counter(card.hierarchia for card in hand)
         if len(counts) == 5:
             return "High Card"
@@ -478,54 +475,51 @@ class Gra:
             
     def zakoncz_runde(self):
         hands = [gracz.reka + self.stol for gracz in self.gracze]
-        winners, best_hand_rank = self.determine_winner(hands)
-        if len(winners) == 1:
-            winning_player = self.gracze[winners[0]]
-            winning_player.zetony += self.aktualna_stawka  # Aktualizacja na aktualna_stawka
-            self.aktualna_stawka = 0  # Zerowanie aktualna_stawka
+        zwyciezca, best_hand_rank = self.determine_winner(hands)
+        winning_hand = hands[zwyciezca[0]]  # Pobranie układu zwycięzcy
+
+        if len(zwyciezca) == 1:
+            winning_player = self.gracze[zwyciezca[0]]
+            winning_player.zetony += self.aktualna_stawka
         else:
-            for idx in winners:
+            for idx in zwyciezca:
                 winning_player = self.gracze[idx]
-                winning_player.zetony += self.aktualna_stawka // len(winners)  # Aktualizacja na aktualna_stawka
-            self.aktualna_stawka = 0  # Zerowanie aktualna_stawka
+                winning_player.zetony += self.aktualna_stawka // len(zwyciezca)
+        
+        self.aktualna_stawka = 0
 
-        # Resetowanie stanu gry
+        emit('rezultat', {
+            'message': 'Runda zakończona',
+            'zwyciezca': [self.gracze[idx].name for idx in zwyciezca],
+            'uklad_zwyciezcy': self.check_hand(winning_hand)
+        }, room=self.id)
+
+        # Resetowanie stawek graczy
+        for gracz in self.gracze:
+            gracz.stawka = 0
+
+        # Resetowanie stołu
         self.stol = []
-        # Sprawdzenie czy gra powinna się zakończyć
-        if self.sprawdz_koniec_gry():
-            self.koniec_gry = True
-            
-    def sprawdz_koniec_gry(self):
-        # Sprawdzenie czy gra powinna się zakończyć
-        liczba_graczy = len(self.gracze)
-        aktywni_gracze = sum(1 for gracz in self.gracze if gracz.zetony > 0)
-        if aktywni_gracze == 1:
-            self.koniec_gry = True
-            return True  # Zwracanie informacji o zakończeniu gry
-        return False  # Zwracanie informacji o kontynuacji gry
-            
-    @staticmethod
-    @socketio.on('rezultat')
-    def wynik(stan_gry):
-        if stan_gry:
-            # Sprawdzenie stanu gry
-            koniec_gry = Gra.sprawdz_koniec_gry()
-            
-            if koniec_gry:
-                hands = []
-                for gracz in gracze:
-                    hands.append(gracz.pokaz_reke())
-                zwyciezca, max_uklad = Gra.determine_winner(hands)
 
-                if len(zwyciezca) == 1:
-                    zwyciezca = list(gracze)[zwyciezca[0]]
-                    emit('Wynik gry:', {"zwyciezcą jest: ": zwyciezca, " z układem: ": max_uklad})
-                else:
-                    emit('Wynik gry:', {"remis": zwyciezca})
-            else:
-                emit('rezultat', {"komunikat": "Gra nadal trwa."})
-        else:
-            emit('rezultat', {"błąd": "Brak danych o stanie gry."})
+    def sprawdz_koniec_gry(self):
+        if any(gracz.zetony >= 200 for gracz in self.gracze):  # Na przykład, jeśli ktoś ma 200 żetonów, wygrywa
+            self.koniec_gry = True
+            zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
+            emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
+        elif all(gracz.zetony == 0 for gracz in self.gracze if gracz != self.aktualny_gracz):
+            self.koniec_gry = True
+            zwyciezca = self.aktualny_gracz
+            emit('rezultatkoniecgry', {'message': 'Gra zakończona, wszyscy gracze poza jednym zbankrutowali', 'zwyciezca': zwyciezca.name}, room=self.id)
+        elif self.runda >= 5:  # Na przykład gra kończy się po 5 rundach
+            self.koniec_gry = True
+            zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
+            emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
+
+
+    def get_winning_hand(self, hands, zwyciezca):
+        return hands[zwyciezca[0]]
+
+
 
 class Menu:
 
