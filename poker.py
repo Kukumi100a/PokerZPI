@@ -49,6 +49,11 @@ class Talia:
             self.wydane_karty.add(karta)
         return wydane_karty
 
+    def zbierz_karty_graczy(self, gracze):
+        for gracz in gracze:
+            self.karty.extend(gracz.reka)
+            gracz.reka.clear()
+
 class Gracz:
     def __init__(self, name, zetony):
         self.name = name
@@ -100,7 +105,6 @@ class Gracz:
         if self.stawka < self.gra.aktualna_stawka:
             raise ValueError("Nie można czekać, gdy stawka została przebita")
         self.stawka = self.gra.aktualna_stawka
-    
 
 gracze = {}
 
@@ -256,7 +260,6 @@ class Gra:
         if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze):
             # Jeśli tak, zakończ rundę
             self.zakoncz_runde()
-            self.runda=+1
             # Sprawdzenie czy gra powinna się zakończyć
             self.sprawdz_koniec_gry()
         else:
@@ -403,19 +406,7 @@ class Gra:
         self.kolejka.append(temp)
         # Ustawienie następnego gracza jako aktualny
         self.aktualny_gracz = self.kolejka[0]
-
-
-    def rozdaj_karty(self):
-        if self.runda == 2:
-            # Jeśli to druga runda, dodaj trzy karty do stołu
-            self.stol.extend(self.talia.rozdaj_karte(3))
-        elif self.runda == 3:
-            # Jeśli to trzecia runda, dodaj jedną kartę do stołu
-            self.stol.extend(self.talia.rozdaj_karte(1))
-        elif self.runda == 4:
-            # Jeśli to czwarta runda, dodaj ostatnią kartę do stołu
-            self.stol.extend(self.talia.rozdaj_karte(1))
-    
+ 
     def determine_winner(self, hands):
         winners = []
         best_hand_rank = None
@@ -478,29 +469,20 @@ class Gra:
         hands = [gracz.reka + self.stol for gracz in self.gracze]
         winners, best_hand_rank = self.determine_winner(hands)
         winning_hand = hands[winners[0]]  # Pobranie układu zwycięzcy
-
+        wygrana = sum(gracz.stawka for gracz in self.gracze)
         if len(winners) == 1:
             winning_player = self.gracze[winners[0]]
-            winning_player.zetony += self.aktualna_stawka
+            winning_player.zetony += wygrana
         else:
             for idx in winners:
                 winning_player = self.gracze[idx]
-                winning_player.zetony += self.aktualna_stawka // len(winners)
+                winning_player.zetony += wygrana // len(winners)
         
-        self.aktualna_stawka = 0
-
         emit('rezultat', {
             'message': 'Runda zakończona',
             'zwyciezca': [self.gracze[idx].name for idx in winners],
             'uklad_zwyciezcy': self.check_hand(winning_hand)
         }, room=self.id)
-
-        # Resetowanie stawek graczy
-        for gracz in self.gracze:
-            gracz.stawka = 0
-
-        # Resetowanie stołu
-        self.stol = []
 
     def sprawdz_koniec_gry(self):
         if any(gracz.zetony >= 200 for gracz in self.gracze):  # Na przykład, jeśli ktoś ma 200 żetonów, wygrywa
@@ -511,11 +493,24 @@ class Gra:
             self.koniec_gry = True
             zwyciezca = self.aktualny_gracz
             emit('rezultatkoniecgry', {'message': 'Gra zakończona, wszyscy gracze poza jednym zbankrutowali', 'zwyciezca': zwyciezca.name}, room=self.id)
-        elif self.runda >= 5:  # Na przykład gra kończy się po 5 rundach
+        elif self.runda >= 3:  # Na przykład gra kończy się po 5 rundach
             self.koniec_gry = True
             zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
             emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
+        else:
+            self.runda=+1
+                    # Resetowanie stawek graczy
+            self.aktualna_stawka = 0
+            for gracz in self.gracze:
+                gracz.stawka = 0
+                self.talia.zbierz_karty_graczy(self.gracze)
+                gracz.reka = self.talia.rozdaj_karte(5)
 
+            # Resetowanie stołu
+            self.stol = []
+
+
+                
 
 
 
