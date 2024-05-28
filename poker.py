@@ -53,6 +53,7 @@ class Talia:
         for gracz in gracze:
             self.karty.extend(gracz.reka)
             gracz.reka.clear()
+            self.wydane_karty.clear()
 
 class Gracz:
     def __init__(self, name, zetony):
@@ -61,12 +62,28 @@ class Gracz:
         self.reka = []
         self.stawka = 0
         self.czy_pas = False
+        self.czy_czeka = False
+        self.wykonal_ruch = False
 
     def dobierz_karte(self, karty_do_wymiany, talia):
-        # Usuń karty do wymiany z ręki gracza
-        for karta in karty_do_wymiany:
-            self.reka.remove(karta)
-        
+        karty_do_usuniecia = []
+
+        # Przeszukaj wydane karty w celu znalezienia kart odpowiadających danym z karty_do_wymiany
+        for karta_dict in karty_do_wymiany:
+            for karta in talia.wydane_karty:
+                if karta.kolory == karta_dict['kolory'] and karta.hierarchia == karta_dict['hierarchia']:
+                    karty_do_usuniecia.append(karta)
+
+        # Usuń znalezione karty z ręki gracza i z wydanych kart
+        for karta in karty_do_usuniecia:
+            if karta in self.reka:
+                self.reka.remove(karta)
+            talia.wydane_karty.remove(karta)
+            talia.karty.append(karta)
+
+        # Przetasuj talię
+        talia.tasuj()
+
         # Dobierz nowe karty z talii
         nowe_karty = talia.rozdaj_karte(len(karty_do_wymiany))
         self.reka.extend(nowe_karty)
@@ -104,9 +121,9 @@ class Gracz:
         self.zetony = 0
     
     def czeka(self):
-        if self.stawka < self.gra.aktualna_stawka:
+        if self.stawka < self.gra.najwyzsza_stawka:
             raise ValueError("Nie można czekać, gdy stawka została przebita")
-        self.stawka = self.gra.aktualna_stawka
+        self.czy_czeka = True
 
 gracze = {}
 
@@ -242,12 +259,13 @@ class Gra:
         self.aktualny_gracz = None
         self.aktualny_gracz_bilans = 0
         self.poczatkowy_bilans = 100
-        self.aktualna_stawka = 0
+        self.najwyzsza_stawka = 0
         self.runda = 1
         self.koniec_gry = False
         self.hierarchia = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         self.wygrana = 0 
         self.licytacja_runda = 1 
+        self.stawka_na_stole = 0
 
         
     def start_game(self):
@@ -260,11 +278,15 @@ class Gra:
         self.aktualny_gracz = self.gracze[0]
 
     def runda_licytacji(self):
+        suma_stawek = sum(gracz.stawka for gracz in self.gracze if not gracz.czy_pas and not gracz.czy_czeka)
         if self.licytacja_runda > 2:
             self.kolejna_runda()
         else:
-            if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze if not gracz.czy_pas):               
-                self.licytacja_runda =+1
+            if suma_stawek == self.stawka_na_stole and all(gracz.wykonal_ruch for gracz in self.gracze):
+                self.licytacja_runda +=1
+                for gracz in self.gracze:
+                    gracz.czy_czeka = False
+                    gracz.wykonal_ruch = False 
                 emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
             else: 
                 self.kolejny_gracz()
@@ -273,50 +295,56 @@ class Gra:
 
 
     def kolejna_runda(self):
-        # Sprawdzenie czy wszyscy gracze wykonali ruch
-        if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze if not gracz.czy_pas):
-            # Jeśli tak, zakończ rundę
             self.zakoncz_runde()
-            # Sprawdzenie czy gra powinna się zakończyć
             self.sprawdz_koniec_gry()
-        else:
-            # W przeciwnym razie, przejdź do kolejnego gracza
-            self.kolejny_gracz()
 
     
     def wykonaj_ruch(self, ruch, stawka=0, karty_do_wymiany=None):
         if ruch == "czekanie":
-            if self.aktualna_stawka > 0:
+            if self.najwyzsza_stawka > 0:
                 self.aktualny_gracz.czeka()
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
+            self.aktualny_gracz.wykonal_ruch = True
             self.runda_licytacji()
         elif ruch == "dobierz":
             self.aktualny_gracz.dobierz_karte(karty_do_wymiany, self.talia)
         elif ruch == "postawienie":
             self.aktualny_gracz.postawienie(stawka)
-            self.aktualna_stawka += stawka
+            if stawka > self.najwyzsza_stawka:
+                self.najwyzsza_stawka = stawka
+            self.stawka_na_stole += stawka
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
+            self.aktualny_gracz.wykonal_ruch = True
             self.runda_licytacji()
         elif ruch == "sprawdzenie":
-            roznica = self.aktualna_stawka - self.aktualny_gracz.stawka
+            roznica = self.najwyzsza_stawka - self.aktualny_gracz.stawka
             self.aktualny_gracz.sprawdzenie(roznica)
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
+            self.stawka_na_stole += roznica
+            self.aktualny_gracz.wykonal_ruch = True
             self.runda_licytacji()
         elif ruch == "pas":
             self.aktualny_gracz.pas()
             self.aktualny_gracz.stawka = 0
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
+            self.aktualny_gracz.wykonal_ruch = True
             self.runda_licytacji()
         elif ruch == "podbicie":
-            self.aktualna_stawka += stawka  
+            if stawka > self.najwyzsza_stawka:
+                self.najwyzsza_stawka = stawka  
+            self.stawka_na_stole += stawka
             self.aktualny_gracz.podbicie(stawka)  
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
+            self.aktualny_gracz.wykonal_ruch = True
             self.runda_licytacji()
         elif ruch == "va_banque":
             self.aktualny_gracz.va_banque()
-            self.aktualna_stawka += self.aktualny_gracz.stawka
+            if stawka > self.najwyzsza_stawka:
+                self.najwyzsza_stawka = self.aktualny_gracz.stawka
+            self.stawka_na_stole += stawka
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
             self.licytacja_runda = 2 
+            self.aktualny_gracz.wykonal_ruch = True
             self.runda_licytacji()
 
     @staticmethod
@@ -341,9 +369,9 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         gra = pokoj.gra
         karty_do_wymiany = data.get('karty_do_wymiany')
+        gracz = gra.aktualny_gracz
         gra.wykonaj_ruch('dobierz', karty_do_wymiany=karty_do_wymiany)
         
-        gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
         karty = []
         for karta in gracz.reka:
             karty.append({'kolor': karta.kolory, 'znak': karta.hierarchia})
@@ -525,7 +553,7 @@ class Gra:
         else:
             self.runda=+1
                     # Resetowanie stawek graczy
-            self.aktualna_stawka = 0
+            self.najwyzsza_stawka = 0
             for gracz in self.gracze:
                 gracz.stawka = 0
                 self.talia.zbierz_karty_graczy(self.gracze)
