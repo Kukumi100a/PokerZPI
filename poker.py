@@ -247,6 +247,7 @@ class Gra:
         self.koniec_gry = False
         self.hierarchia = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         self.wygrana = 0 
+        self.licytacja_runda = 1 
 
         
     def start_game(self):
@@ -257,6 +258,19 @@ class Gra:
             gracz.zetony = self.poczatkowy_bilans
         # Ustawienie pierwszego gracza jako aktualnego gracza
         self.aktualny_gracz = self.gracze[0]
+
+    def runda_licytacji(self):
+        if self.licytacja_runda > 2:
+            self.kolejna_runda()
+        else:
+            if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze if not gracz.czy_pas):               
+                self.licytacja_runda =+1
+                emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!'}, room=self.id)
+            else: 
+                self.kolejny_gracz()
+                if self.licytacja_runda == 2:
+                    emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!'}, room=self.id)
+
 
     def kolejna_runda(self):
         # Sprawdzenie czy wszyscy gracze wykonali ruch
@@ -275,36 +289,35 @@ class Gra:
             if self.aktualna_stawka > 0:
                 self.aktualny_gracz.czeka()
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
-            self.kolejna_runda()
+            self.runda_licytacji()
         elif ruch == "dobierz":
             self.aktualny_gracz.dobierz_karte(karty_do_wymiany, self.talia)
-            self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
-            self.kolejna_runda()
         elif ruch == "postawienie":
             self.aktualny_gracz.postawienie(stawka)
             self.aktualna_stawka += stawka
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
-            self.kolejna_runda()
+            self.runda_licytacji()
         elif ruch == "sprawdzenie":
             roznica = self.aktualna_stawka - self.aktualny_gracz.stawka
             self.aktualny_gracz.sprawdzenie(roznica)
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
-            self.kolejna_runda()
+            self.runda_licytacji()
         elif ruch == "pas":
             self.aktualny_gracz.pas()
             self.aktualny_gracz.stawka = 0
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
-            self.kolejna_runda()
+            self.runda_licytacji()
         elif ruch == "podbicie":
             self.aktualna_stawka += stawka  
             self.aktualny_gracz.podbicie(stawka)  
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
-            self.kolejna_runda()
+            self.runda_licytacji()
         elif ruch == "va_banque":
             self.aktualny_gracz.va_banque()
             self.aktualna_stawka += self.aktualny_gracz.stawka
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
-            self.kolejna_runda()
+            self.licytacja_runda = 2 
+            self.runda_licytacji()
 
     @staticmethod
     @socketio.on('start_gry')
