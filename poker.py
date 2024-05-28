@@ -265,11 +265,11 @@ class Gra:
         else:
             if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze if not gracz.czy_pas):               
                 self.licytacja_runda =+1
-                emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!'}, room=self.id)
+                emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
             else: 
                 self.kolejny_gracz()
                 if self.licytacja_runda == 2:
-                    emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!'}, room=self.id)
+                    emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
 
 
     def kolejna_runda(self):
