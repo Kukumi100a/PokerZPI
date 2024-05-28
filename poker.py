@@ -48,7 +48,7 @@ class Talia:
             wydane_karty.append(karta)
             self.wydane_karty.add(karta)
         return wydane_karty
-
+    
     def zbierz_karty_graczy(self, gracze):
         for gracz in gracze:
             self.karty.extend(gracz.reka)
@@ -60,6 +60,7 @@ class Gracz:
         self.zetony = zetony
         self.reka = []
         self.stawka = 0
+        self.czy_pas = False
 
     def dobierz_karte(self, karty_do_wymiany, talia):
         # Usuń karty do wymiany z ręki gracza
@@ -75,7 +76,8 @@ class Gracz:
     
     def pas(self):
         self.zetony -= self.stawka
-        self.stawka = 0
+        self.czy_pas = True
+
 
     def sprawdzenie(self, stawka):
         if self.zetony >= stawka:
@@ -244,6 +246,7 @@ class Gra:
         self.runda = 1
         self.koniec_gry = False
         self.hierarchia = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        self.wygrana = 0 
 
         
     def start_game(self):
@@ -257,7 +260,7 @@ class Gra:
 
     def kolejna_runda(self):
         # Sprawdzenie czy wszyscy gracze wykonali ruch
-        if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze):
+        if all(gracz.stawka == self.aktualna_stawka for gracz in self.gracze if not gracz.czy_pas):
             # Jeśli tak, zakończ rundę
             self.zakoncz_runde()
             # Sprawdzenie czy gra powinna się zakończyć
@@ -347,7 +350,8 @@ class Gra:
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz postawił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz postawił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('sprawdzenie')
@@ -357,7 +361,8 @@ class Gra:
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('sprawdzenie')
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('pas')
@@ -367,7 +372,8 @@ class Gra:
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('pas')
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('podbicie')
@@ -378,7 +384,8 @@ class Gra:
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza,  'message': 'Gracz podbił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza,  'message': 'Gracz podbił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('va_banque')
@@ -388,7 +395,8 @@ class Gra:
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('va_banque')
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz zagrał va banque', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz zagrał va banque', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('czekanie')
@@ -398,7 +406,8 @@ class Gra:
         stary_gracz = pokoj.gra.aktualny_gracz.name
         pokoj.gra.wykonaj_ruch('czekanie')
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
-        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': pokoj.gra.aktualna_stawka}, room=id_pokoju)
+        wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
+        emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
 
     def kolejny_gracz(self):
         # Obecny gracz na koniec
@@ -466,22 +475,25 @@ class Gra:
                 return "Flush"
             
     def zakoncz_runde(self):
-        hands = [gracz.reka + self.stol for gracz in self.gracze]
+        hands = [gracz.reka + self.stol for gracz in self.gracze if not gracz.czy_pas]
         winners, best_hand_rank = self.determine_winner(hands)
         winning_hand = hands[winners[0]]  # Pobranie układu zwycięzcy
         wygrana = sum(gracz.stawka for gracz in self.gracze)
         if len(winners) == 1:
-            winning_player = self.gracze[winners[0]]
+            gracze_aktywni = [gracz for gracz in self.gracze if not gracz.czy_pas]
+            winning_player = gracze_aktywni[winners[0]]
             winning_player.zetony += wygrana
         else:
             for idx in winners:
-                winning_player = self.gracze[idx]
+                gracze_aktywni = [gracz for gracz in self.gracze if not gracz.czy_pas]
+                winning_player = gracze_aktywni[idx]
                 winning_player.zetony += wygrana // len(winners)
         
         emit('rezultat', {
             'message': 'Runda zakończona',
             'zwyciezca': [self.gracze[idx].name for idx in winners],
-            'uklad_zwyciezcy': self.check_hand(winning_hand)
+            'uklad_zwyciezcy': self.check_hand(winning_hand),
+            'bilans_gracza': [self.gracze[idx].zetony for idx in winners]
         }, room=self.id)
 
     def sprawdz_koniec_gry(self):
@@ -505,7 +517,8 @@ class Gra:
                 gracz.stawka = 0
                 self.talia.zbierz_karty_graczy(self.gracze)
                 gracz.reka = self.talia.rozdaj_karte(5)
-
+                self.wygrana = 0
+                gracz.czy_pas = False
             # Resetowanie stołu
             self.stol = []
 
