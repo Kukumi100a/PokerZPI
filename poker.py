@@ -283,13 +283,14 @@ class Gra:
     def runda_licytacji(self):
         suma_stawek = sum(gracz.stawka for gracz in self.gracze if not gracz.czy_pas and not gracz.czy_czeka)
         if suma_stawek == self.stawka_na_stole and all(gracz.wykonal_ruch for gracz in self.gracze):
-            self.licytacja_runda +=1
             for gracz in self.gracze:
                 gracz.czy_czeka = False
                 gracz.wykonal_ruch = False 
-                if self.licytacja_runda > 2:
-                    self.kolejna_runda()
-            emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
+            if self.licytacja_runda == 2:
+                self.kolejna_runda()
+            if  self.licytacja_runda == 1:
+                emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
+            self.licytacja_runda +=1
         else: 
             self.kolejny_gracz()
             if self.licytacja_runda == 2:
@@ -391,9 +392,12 @@ class Gra:
         stawka = int(data.get('stawka'))
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
+        runda_gry = pokoj.gra.runda 
+        runda_licytacji = pokoj.gra.licytacja_runda
         pokoj.gra.wykonaj_ruch('postawienie', stawka=stawka)
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
         wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
+
         emit('aktualizacja', {'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz postawił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
 
     @staticmethod
@@ -554,6 +558,7 @@ class Gra:
             emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
         else:
             self.runda=+1
+            self.licytacja_runda=0
                     # Resetowanie stawek graczy
             self.najwyzsza_stawka = 0
             for gracz in self.gracze:
