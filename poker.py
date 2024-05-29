@@ -366,6 +366,15 @@ class Gra:
         emit('aktualizacja', {'message': 'Start gry', 'reka': karty, 'gracze': gracze, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
 
     @staticmethod
+    @socketio.on('opusc_gre')
+    def handle_opusc(data):
+        id_pokoju = data.get('id')
+        gracz = data.get('gracz')
+        pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
+        pokoj.gra.koniec_gry = True 
+        emit('aktualizacja', {'message': 'Opuszczenie gry', 'gracz_opuszczajacy': gracz}, room=id_pokoju)
+
+    @staticmethod
     @socketio.on('dobierz')
     def handle_dobierz(data):
         id_pokoju = data.get('id')
