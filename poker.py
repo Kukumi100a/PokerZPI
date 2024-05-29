@@ -88,6 +88,9 @@ class Gracz:
         nowe_karty = talia.rozdaj_karte(len(karty_do_wymiany))
         self.reka.extend(nowe_karty)
 
+        karty_do_usuniecia.clear()
+        nowe_karty.clear()
+
     def pokaz_reke(self):
         return [str(karta) for karta in self.reka]
     
@@ -279,19 +282,18 @@ class Gra:
 
     def runda_licytacji(self):
         suma_stawek = sum(gracz.stawka for gracz in self.gracze if not gracz.czy_pas and not gracz.czy_czeka)
-        if self.licytacja_runda > 2:
-            self.kolejna_runda()
-        else:
-            if suma_stawek == self.stawka_na_stole and all(gracz.wykonal_ruch for gracz in self.gracze):
-                self.licytacja_runda +=1
-                for gracz in self.gracze:
-                    gracz.czy_czeka = False
-                    gracz.wykonal_ruch = False 
+        if suma_stawek == self.stawka_na_stole and all(gracz.wykonal_ruch for gracz in self.gracze):
+            self.licytacja_runda +=1
+            for gracz in self.gracze:
+                gracz.czy_czeka = False
+                gracz.wykonal_ruch = False 
+                if self.licytacja_runda > 2:
+                    self.kolejna_runda()
+            emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
+        else: 
+            self.kolejny_gracz()
+            if self.licytacja_runda == 2:
                 emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
-            else: 
-                self.kolejny_gracz()
-                if self.licytacja_runda == 2:
-                    emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
 
 
     def kolejna_runda(self):
