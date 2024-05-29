@@ -187,20 +187,19 @@ class Pokoj:
         id = data.get('id')
         gracze_str = data.get('gracze')
         pokoj = next((p for p in pokoje if p.id == id), None)
-        if gracze_str == pokoj.gracze:
-            if len(pokoj.gracze) >= 2:
-                pokoj.game_started = True
-                print("Gra została rozpoczęta!")
-                # Przekazanie żądania rozpoczęcia gry do klasy Gra
-                ########## obiekt
-                nowi_gracze = [ gracze[nick] for nick in gracze_str ]
+        if len(pokoj.gracze) >= 2:
+            pokoj.game_started = True
+            print("Gra została rozpoczęta!")
+            # Przekazanie żądania rozpoczęcia gry do klasy Gra
+            ########## obiekt
+            nowi_gracze = [ gracze[nick] for nick in gracze_str ]
+            if pokoj.gra is None:
                 pokoj.gra = Gra(id, nowi_gracze)
-                pokoj.gra.start_game()
-                emit('start_game', {'success': f'Gra w pokoju {pokoj.nazwa} rozpoczęła się'}, room=pokoj.id)
-            else:
-                print("W grze muszą brać udział co najmniej dwaj gracze.")
+            pokoj.gra.start_game()
+            emit('start_game', {'success': f'Gra w pokoju {pokoj.nazwa} rozpoczęła się'}, room=pokoj.id)
         else:
-            print("Tylko właściciel pokoju może rozpocząć grę.")
+            print("W grze muszą brać udział co najmniej dwaj gracze.")
+
 
 
     @staticmethod
@@ -261,7 +260,6 @@ class Gra:
         self.stol = []
         self.aktualny_gracz = None
         self.aktualny_gracz_bilans = 0
-        self.poczatkowy_bilans = 100
         self.najwyzsza_stawka = 0
         self.runda = 1
         self.koniec_gry = False
@@ -276,7 +274,13 @@ class Gra:
         self.talia.tasuj()
         for gracz in self.gracze:
             gracz.reka = self.talia.rozdaj_karte(5)
-            gracz.zetony = self.poczatkowy_bilans
+            gracz.stawka = 0
+            self.wygrana = 0
+            gracz.czy_pas = False
+        self.stol = []
+        self.najwyzsza_stawka = 0
+        self.licytacja_runda = 1
+        self.koniec_gry = False
         # Ustawienie pierwszego gracza jako aktualnego gracza
         self.aktualny_gracz = self.gracze[0]
 
@@ -357,13 +361,14 @@ class Gra:
         gracz = data.get('gracz')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
-
+        runda_gry = pokoj.gra.runda 
+        runda_licytacji = pokoj.gra.licytacja_runda
         karty = []
         for karta in gracz.reka:
             karty.append({'kolor': karta.kolory, 'znak': karta.hierarchia})
 
         gracze = [g.name for g in pokoj.gra.gracze]
-        emit('aktualizacja', {'message': 'Start gry', 'reka': karty, 'gracze': gracze, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
+        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'message': 'Start gry', 'reka': karty, 'gracze': gracze, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
 
     @staticmethod
     @socketio.on('opusc_gre')
@@ -576,7 +581,7 @@ class Gra:
             zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
             emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
         else:
-            self.runda=+1
+            self.runda+=1
             self.licytacja_runda=0
                     # Resetowanie stawek graczy
             self.najwyzsza_stawka = 0
@@ -588,6 +593,11 @@ class Gra:
                 gracz.czy_pas = False
             # Resetowanie stołu
             self.stol = []
+
+
+
+
+
 
 
                 
