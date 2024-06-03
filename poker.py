@@ -267,19 +267,28 @@ class Gra:
         self.wygrana = 0 
         self.licytacja_runda = 1 
         self.stawka_na_stole = 0
+        self.poczatkowa_lista_graczy = None
 
         
     def start_game(self):
         # Tasowanie talii i rozdanie początkowych kart
-        self.talia.tasuj()
         for gracz in self.gracze:
-            gracz.reka = self.talia.rozdaj_karte(5)
             gracz.stawka = 0
             self.wygrana = 0
-            gracz.czy_pas = False
+
+        if self.licytacja_runda == 1 and self.runda == 1:
+            self.aktualny_gracz_bilans = 0
+            self.stawka_na_stole = 0
+            self.talia.tasuj()
+            for gracz in self.gracze:
+                gracz.reka = self.talia.rozdaj_karte(5)
+                gracz.zetony = 100 
+
         self.stol = []
         self.najwyzsza_stawka = 0
-        self.licytacja_runda = 1
+        if self.licytacja_runda == 2:
+            for gracz in self.gracze:
+                gracz.czy_pas = False
         self.koniec_gry = False
         # Ustawienie pierwszego gracza jako aktualnego gracza
         self.aktualny_gracz = self.gracze[0]
@@ -289,12 +298,17 @@ class Gra:
         if suma_stawek == self.stawka_na_stole and all(gracz.wykonal_ruch for gracz in self.gracze):
             for gracz in self.gracze:
                 gracz.czy_czeka = False
-                gracz.wykonal_ruch = False 
+                gracz.wykonal_ruch = False
+            if any(gracz.zetony == 0 for gracz in self.gracze):
+                self.kolejna_runda()
             if self.licytacja_runda == 2:
                 self.kolejna_runda()
-            if  self.licytacja_runda == 1:
-                emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
-            self.licytacja_runda +=1
+            else:
+                if  self.licytacja_runda == 1:
+                    self.kolejny_gracz()
+                    self.licytacja_runda +=1
+                    emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
+
         else: 
             self.kolejny_gracz()
             if self.licytacja_runda == 2:
@@ -338,7 +352,10 @@ class Gra:
             self.runda_licytacji()
         elif ruch == "podbicie":
             if stawka > self.najwyzsza_stawka:
-                self.najwyzsza_stawka = stawka  
+                self.najwyzsza_stawka = stawka
+            ##TODO STAWKI PODBICIE
+            if stawka < self.najwyzsza_stawka:
+                stawka += self.najwyzsza_stawka  
             self.stawka_na_stole += stawka
             self.aktualny_gracz.podbicie(stawka)  
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
@@ -346,6 +363,7 @@ class Gra:
             self.runda_licytacji()
         elif ruch == "va_banque":
             self.aktualny_gracz.va_banque()
+            stawka = self.aktualny_gracz.stawka
             if stawka > self.najwyzsza_stawka:
                 self.najwyzsza_stawka = self.aktualny_gracz.stawka
             self.stawka_na_stole += stawka
@@ -360,15 +378,16 @@ class Gra:
         id_pokoju = data.get('id')
         gracz = data.get('gracz')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
-        gracz = pokoj.gra.gracze[pokoj.gracze.index(gracz)]
+        if pokoj.gra.licytacja_runda == 1 and pokoj.gra.runda == 1:
+            gracze = [g.name for g in pokoj.gra.gracze]
+            pokoj.gra.poczatkowa_lista_graczy = gracze
+        gracz = next((g for g in pokoj.gra.gracze if g.name == gracz), None)
         runda_gry = pokoj.gra.runda 
         runda_licytacji = pokoj.gra.licytacja_runda
         karty = []
         for karta in gracz.reka:
             karty.append({'kolor': karta.kolory, 'znak': karta.hierarchia})
-
-        gracze = [g.name for g in pokoj.gra.gracze]
-        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'message': 'Start gry', 'reka': karty, 'gracze': gracze, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
+        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'message': 'Start gry', 'reka': karty, 'gracze': pokoj.gra.poczatkowa_lista_graczy, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
 
     @staticmethod
     @socketio.on('opusc_gre')
@@ -571,23 +590,31 @@ class Gra:
         if any(gracz.zetony >= 200 for gracz in self.gracze):  # Na przykład, jeśli ktoś ma 200 żetonów, wygrywa
             self.koniec_gry = True
             zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
+            self.runda=1
+            self.licytacja_runda=1
             emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
         elif all(gracz.zetony == 0 for gracz in self.gracze if gracz != self.aktualny_gracz):
             self.koniec_gry = True
             zwyciezca = self.aktualny_gracz
+            self.runda=1
+            self.licytacja_runda=1
             emit('rezultatkoniecgry', {'message': 'Gra zakończona, wszyscy gracze poza jednym zbankrutowali', 'zwyciezca': zwyciezca.name}, room=self.id)
         elif self.runda >= 3:  # Na przykład gra kończy się po 5 rundach
             self.koniec_gry = True
             zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
+            self.runda=1
+            self.licytacja_runda=1
             emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
         else:
             self.runda+=1
-            self.licytacja_runda=0
+            self.licytacja_runda=1
                     # Resetowanie stawek graczy
             self.najwyzsza_stawka = 0
+            self.stawka_na_stole = 0
+            self.talia.zbierz_karty_graczy(self.gracze)
             for gracz in self.gracze:
                 gracz.stawka = 0
-                self.talia.zbierz_karty_graczy(self.gracze)
+                self.talia.tasuj()
                 gracz.reka = self.talia.rozdaj_karte(5)
                 self.wygrana = 0
                 gracz.czy_pas = False
