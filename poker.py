@@ -400,6 +400,8 @@ class Gra:
         gracz = data.get('gracz')
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         pokoj.gra.koniec_gry = True 
+        pokoj.gra.runda = 1
+        pokoj.gra.licytacja_runda = 1
         emit('aktualizacja', {'message': 'Opuszczenie gry', 'gracz_opuszczajacy': gracz}, room=id_pokoju)
 
     @staticmethod
