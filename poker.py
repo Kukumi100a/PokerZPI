@@ -296,19 +296,23 @@ class Gra:
     def runda_licytacji(self):
         suma_stawek = sum(gracz.stawka for gracz in self.gracze if not gracz.czy_pas and not gracz.czy_czeka)
         if suma_stawek == self.stawka_na_stole and all(gracz.wykonal_ruch for gracz in self.gracze):
-            for gracz in self.gracze:
-                gracz.czy_czeka = False
-                gracz.wykonal_ruch = False
-            if any(gracz.zetony == 0 for gracz in self.gracze):
-                self.kolejna_runda()
-            if self.licytacja_runda == 2:
-                self.kolejna_runda()
+            all_pas = all(gracz.czy_pas for gracz in self.gracze)
+            if all_pas:
+                self.sprawdz_koniec_gry()
             else:
-                if  self.licytacja_runda == 1:
-                    self.kolejny_gracz()
-                    self.licytacja_runda +=1
-                    emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
-
+                for gracz in self.gracze:
+                    gracz.czy_czeka = False
+                    gracz.wykonal_ruch = False
+                if any(gracz.zetony == 0 for gracz in self.gracze):
+                    self.kolejna_runda()
+                else:
+                    if self.licytacja_runda == 2:
+                        self.kolejna_runda()
+                    else:
+                        if  self.licytacja_runda == 1:
+                            self.kolejny_gracz()
+                            self.licytacja_runda +=1
+                            emit('dobierz_karty', {'message': 'Twoja kolej na dobranie kart!', 'runda_licytacji': self.licytacja_runda}, room=self.id)
         else: 
             self.kolejny_gracz()
             if self.licytacja_runda == 2:
@@ -414,7 +418,7 @@ class Gra:
         emit('aktualizacja', {'message': 'Karty', 'reka': karty})
         
         # FIXME: Może wywalić testy
-        emit('aktualizacja', {'message': 'Gracz dobrał karty', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name }, room=id_pokoju)
+        emit('aktualizacja', {'message': 'Gracz dobrał karty', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'najwyzsza_stawka': pokoj.gra.najwyzsza_stawka }, room=id_pokoju)
         # emit('aktualizacja', {'message': 'Gracz dobrał karty'})
 
 
@@ -431,7 +435,7 @@ class Gra:
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
         wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
 
-        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz postawił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
+        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz postawił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana, 'najwyzsza_stawka': pokoj.gra.najwyzsza_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('sprawdzenie')
@@ -444,7 +448,7 @@ class Gra:
         pokoj.gra.wykonaj_ruch('sprawdzenie')
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
         wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
-        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
+        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz sprawdził', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana, 'najwyzsza_stawka': pokoj.gra.najwyzsza_stawka}, room=id_pokoju, )
 
     @staticmethod
     @socketio.on('pas')
@@ -457,7 +461,7 @@ class Gra:
         pokoj.gra.wykonaj_ruch('pas')
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
         wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
-        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
+        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz spasował', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana, 'najwyzsza_stawka': pokoj.gra.najwyzsza_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('podbicie')
@@ -471,7 +475,7 @@ class Gra:
         pokoj.gra.wykonaj_ruch('podbicie', stawka=stawka)
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
         wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
-        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza,  'message': 'Gracz podbił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
+        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza,  'message': 'Gracz podbił stawkę', 'stawka': stawka, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana, 'najwyzsza_stawka': pokoj.gra.najwyzsza_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('va_banque')
@@ -480,11 +484,11 @@ class Gra:
         pokoj = next((p for p in pokoje if p.id == id_pokoju), None)
         stary_gracz = pokoj.gra.aktualny_gracz.name
         runda_gry = pokoj.gra.runda 
-        runda_licytacji = pokoj.gra.licytacja_runda
         pokoj.gra.wykonaj_ruch('va_banque')
+        runda_licytacji = pokoj.gra.licytacja_runda
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
         wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
-        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz zagrał va banque', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
+        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz zagrał va banque', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana, 'najwyzsza_stawka': pokoj.gra.najwyzsza_stawka}, room=id_pokoju)
 
     @staticmethod
     @socketio.on('czekanie')
@@ -497,7 +501,7 @@ class Gra:
         pokoj.gra.wykonaj_ruch('czekanie')
         bilans_gracza = pokoj.gra.aktualny_gracz_bilans
         wygrana = sum(gracz.stawka for gracz in pokoj.gra.gracze)
-        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana}, room=id_pokoju)
+        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'obecny_gracz': stary_gracz, 'bilans': bilans_gracza, 'message': 'Gracz czeka', 'nastepny_gracz': pokoj.gra.aktualny_gracz.name, 'stawka_total': wygrana, 'najwyzsza_stawka': pokoj.gra.najwyzsza_stawka}, room=id_pokoju)
 
     def kolejny_gracz(self):
         # Obecny gracz na koniec
@@ -592,18 +596,39 @@ class Gra:
             zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
             self.runda=1
             self.licytacja_runda=1
+            self.talia.zbierz_karty_graczy(self.gracze)
+            for gracz in self.gracze:
+                gracz.stawka = 0
+                self.talia.tasuj()
+                gracz.reka = self.talia.rozdaj_karte(5)
+                self.wygrana = 0
+                gracz.czy_pas = False
             emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
         elif all(gracz.zetony == 0 for gracz in self.gracze if gracz != self.aktualny_gracz):
             self.koniec_gry = True
             zwyciezca = self.aktualny_gracz
             self.runda=1
             self.licytacja_runda=1
+            self.talia.zbierz_karty_graczy(self.gracze)
+            for gracz in self.gracze:
+                gracz.stawka = 0
+                self.talia.tasuj()
+                gracz.reka = self.talia.rozdaj_karte(5)
+                self.wygrana = 0
+                gracz.czy_pas = False
             emit('rezultatkoniecgry', {'message': 'Gra zakończona, wszyscy gracze poza jednym zbankrutowali', 'zwyciezca': zwyciezca.name}, room=self.id)
         elif self.runda >= 3:  # Na przykład gra kończy się po 5 rundach
             self.koniec_gry = True
             zwyciezca = max(self.gracze, key=lambda gracz: gracz.zetony)
             self.runda=1
             self.licytacja_runda=1
+            self.talia.zbierz_karty_graczy(self.gracze)
+            for gracz in self.gracze:
+                gracz.stawka = 0
+                self.talia.tasuj()
+                gracz.reka = self.talia.rozdaj_karte(5)
+                self.wygrana = 0
+                gracz.czy_pas = False
             emit('rezultatkoniecgry', {'message': 'Gra zakończona', 'zwyciezca': zwyciezca.name}, room=self.id)
         else:
             self.runda+=1
@@ -620,14 +645,6 @@ class Gra:
                 gracz.czy_pas = False
             # Resetowanie stołu
             self.stol = []
-
-
-
-
-
-
-
-                
 
 
 
