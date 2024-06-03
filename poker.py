@@ -357,9 +357,6 @@ class Gra:
         elif ruch == "podbicie":
             if stawka > self.najwyzsza_stawka:
                 self.najwyzsza_stawka = stawka
-            ##TODO STAWKI PODBICIE
-            if stawka < self.najwyzsza_stawka:
-                stawka += self.najwyzsza_stawka  
             self.stawka_na_stole += stawka
             self.aktualny_gracz.podbicie(stawka)  
             self.aktualny_gracz_bilans = self.aktualny_gracz.zetony
@@ -388,10 +385,13 @@ class Gra:
         gracz = next((g for g in pokoj.gra.gracze if g.name == gracz), None)
         runda_gry = pokoj.gra.runda 
         runda_licytacji = pokoj.gra.licytacja_runda
+        bilanse = []
+        for graczbilans in pokoj.gra.gracze:
+            bilanse.append({'gracz': graczbilans.name, 'bilans': graczbilans.zetony})
         karty = []
         for karta in gracz.reka:
             karty.append({'kolor': karta.kolory, 'znak': karta.hierarchia})
-        emit('aktualizacja', {'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'message': 'Start gry', 'reka': karty, 'gracze': pokoj.gra.poczatkowa_lista_graczy, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
+        emit('aktualizacja', {'bilans_graczy': bilanse,'runda_gry': runda_gry, 'runda_licytacji': runda_licytacji, 'message': 'Start gry', 'reka': karty, 'gracze': pokoj.gra.poczatkowa_lista_graczy, 'nastepny_gracz': pokoj.gra.aktualny_gracz.name })
 
     @staticmethod
     @socketio.on('opusc_gre')
