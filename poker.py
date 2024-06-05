@@ -657,9 +657,12 @@ class Menu:
     def rejestracja(data):
         name = data.get('nazwa')
         if name:
-            gracz = Gracz(name, 100)
-            gracze[name] = gracz
-            emit('rejestracja', {"komunikat": "Rejestracja zakończona pomyślnie."})
+            if name in gracze:
+                emit('rejestracja', {"błąd": "Użytkownik o tej nazwie już istnieje."})
+            else:
+                gracz = Gracz(name, 100)
+                gracze[name] = gracz
+                emit('rejestracja', {"komunikat": "Rejestracja zakończona pomyślnie."})
         else:
             emit('rejestracja', {"błąd": "Nazwa jest wymagana."})
 
